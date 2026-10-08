@@ -107,7 +107,6 @@ export default function Catalog({ onOpenProduct, search, onSearchChange }: Props
   const visibleCities = cities.filter(city => (!country || country === city.country_name) && `${city.city_name} ${city.country_name || ''}`.toLocaleLowerCase().includes(cityKeyword.toLocaleLowerCase()));
   const saved = savedProducts.map(product => product.product_code);
   const displayedProducts = savedOnly ? savedProducts : products;
-  const hero = products.find(product => imageFor(product));
 
   useEffect(() => {
     let alive = true;
@@ -181,8 +180,6 @@ export default function Catalog({ onOpenProduct, search, onSearchChange }: Props
 
     <main className="cat-main">
       <section className={`cat-hero ${submitted ? 'cat-hero-compact' : ''}`}>
-        {!submitted && <div className="cat-hero-copy"><div className="cat-eyebrow"><span/> EVERY DAY, A NEW ADVENTURE</div><h1>把每一天，<br/>过成<span>新体验。</span></h1><p>发现目的地里的精彩，<br className="cat-mobile-break"/>从一场心动的活动开始。</p><div className="cat-hero-note"><CatalogIcon name="sparkle" size={16}/><span>RollingGo ANT · 你的下一站精彩</span></div><div className="cat-hero-decoration"><span/><span/><span/></div></div>}
-        {!submitted && hero && <div className="cat-hero-visual"><ProductImage product={hero}/><div className="cat-visual-shade"/><span className="cat-visual-label"><CatalogIcon name="pin" size={15}/>{hero.city_name || hero.country_name || '精彩目的地'}</span></div>}
         <div className="cat-search-panel">
           <div className="cat-service-tabs" role="tablist" aria-label="旅行服务"><button role="tab" aria-selected={false} onClick={() => setToast('酒店预订请前往 RollingGo 主站')}><CatalogIcon name="hotel"/>酒店</button><button role="tab" aria-selected={false} onClick={() => setToast('机票预订请前往 RollingGo 主站')}><CatalogIcon name="flight"/>机票</button><button role="tab" aria-selected={true} className="active"><CatalogIcon name="ticket"/>活动</button></div>
           <div className="cat-search-fields"><button className={`cat-search-field cat-destination-field ${destinationRequired ? 'cat-field-invalid' : ''}`} onClick={() => openSheet('destination')}><CatalogIcon name="pin"/><span><small>目的地 <em>必填</em></small><strong className={!search.destination ? 'is-placeholder' : ''}>{search.destination?.name || '你想去哪里？'}</strong></span><CatalogIcon name="chevron" size={17}/></button><div className="cat-search-field-row"><button className="cat-search-field" onClick={() => openSheet('dates')}><CatalogIcon name="calendar"/><span><small>出行日期 <em>选填</em></small><strong className={!search.startDate ? 'is-placeholder' : ''}>{search.startDate ? `${prettyDate(search.startDate)}${search.endDate && search.endDate !== search.startDate ? ` — ${prettyDate(search.endDate)}` : ''}` : '选择日期范围'}</strong></span></button><button className="cat-search-field" onClick={() => openSheet('adults')}><CatalogIcon name="people"/><span><small>人数 <em>选填</em></small><strong className={search.adults == null ? 'is-placeholder' : ''}>{search.adults == null ? '成人数量' : `${search.adults} 位成人`}</strong></span></button></div><button className="cat-primary-button cat-search-button" onClick={runSearch}><CatalogIcon name="search" size={19}/>搜索活动</button></div>
@@ -200,8 +197,7 @@ export default function Catalog({ onOpenProduct, search, onSearchChange }: Props
         {!loading && !error && hasNext && !savedOnly && <div className="cat-load-more"><button className="cat-secondary-button" onClick={loadMore} disabled={loadingMore}>{loadingMore ? '加载中…' : '探索更多活动'}{!loadingMore && <CatalogIcon name="arrow" size={17}/>}</button></div>}
       </section>
 
-      <section className="cat-inspiration"><div className="cat-inspiration-icon"><CatalogIcon name="ticket" size={32}/></div><div><h3>一张票，开启一段新故事。</h3><p>从城市探索到精彩体验，用你的方式发现世界。</p></div><span className="cat-inspiration-word">Let's Go.</span></section>
-      <footer className="cat-footer"><span className="cat-footer-brand">RollingGo <b>ANT</b></span><p>让每一段旅程，都有值得回味的体验。</p><small>© {new Date().getFullYear()} RollingGo · 活动体验</small></footer>
+      <footer className="cat-footer"><small>© {new Date().getFullYear()} RollingGo · 活动体验 DEMO</small></footer>
     </main>
 
     <nav className="cat-bottom-nav" aria-label="底部导航"><button className={!savedOnly ? 'active' : ''} onClick={() => { setSavedOnly(false); setSubmitted(false); setSelectedCategory(''); window.scrollTo({ top: 0, behavior: 'smooth' }); }}><CatalogIcon name="home" size={22}/><span>首页</span></button><button onClick={() => { setSavedOnly(false); document.getElementById('cat-results')?.scrollIntoView({ behavior: 'smooth' }); }}><CatalogIcon name="ticket" size={22}/><span>探索</span></button><button className={savedOnly ? 'active' : ''} onClick={() => { setSavedOnly(true); document.getElementById('cat-results')?.scrollIntoView({ behavior: 'smooth' }); }}><CatalogIcon name="heart" size={22}/><span>收藏</span></button><button onClick={() => setToast('账户与订单请前往 RollingGo 主站')}><CatalogIcon name="user" size={22}/><span>我的</span></button></nav>

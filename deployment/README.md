@@ -1,110 +1,49 @@
-# ANT 网站发布交接
+# ANT Sites 部署
 
-本次交付为 GitHub 源码及接续说明，用户将在另一环境继续部署。后续发布顺序：先部署至 ChatGPT Sites 的平台默认地址并完成验收，再将阿里云管理的 `ant.devdemo.cc` 引到该站点。本环境不发布站点或修改 DNS。
+## 当前状态（2026-10-08）
 
-## 当前发布边界
+接手 GitHub main，原始提交 `dac9e773182605360190bf4b4e2ffc1943511a90`。
 
-此仓库包含移动端网站及同源 Node API 网关，不是仅可上传 HTML 的静态演示页。商品、套餐、价格和库存均由 DidaTicket API 提供，浏览器的供应商数据请求只访问本站 `/api/*`；商品图片使用供应商返回的图片地址。供应商密钥仅通过服务端环境变量使用。
+Sites 项目 `appgprj_6ac76e7113d4819198e9d90830476ccc` 已创建，默认来源由平台返回。部署成功后的真实地址与版本将在此记录。
 
-Demo 流程为：首页活动入口 → 目的地搜索 → 商品列表 → 商品详情 → 套餐、日期与人数 → 预订信息 → 订单校验和预订草稿 → 演示收银台。演示在收银台停止；不会创建供应商订单、调用支付接口或执行结算，也不代表已经接入 RollingGo 的真实收银台。
+新项目安全配置检查为 revision 0、无变量。本机 `DIDA_API_KEY` 存在状态为 false。已请求用户在 Sites 项目安全设置绑定 **DIDA_API_KEY（Secret）**；不在源码、Git、命令、聊天或前端存放密钥值。
 
-当前会话没有 ChatGPT Sites 项目、环境变量、部署、域名绑定或部署状态查询工具。因此没有创建 Sites 项目、没有上传发布版本，也没有修改阿里云 DNS。不能把本地服务、构建产物或环境配置草稿视为已经上线。
+完整真实商品手机验收待安全绑定；在此之前只报告构建、mock/官方夹具验收和部署基础设施结果，不用旧环境联调截图代替线上验证。默认地址通过真实验收后才添加 `ant.devdemo.cc`，DNS类型与目标必须由平台实际返回。
 
-已有 Data 插件的 Sites 发布技能适用于报告和 dashboard；该技能引用的 Sites 原生能力在当前会话不可调用，也不能作为本应用的替代发布渠道。其说明提到 Worker 和环境变量，但这不足以证明当前 Sites 项目支持此 Node HTTP 服务或本应用需要的安全 API 网关。
+## 同源后端
 
-## 应用运行方式
+Sites 使用 Cloudflare Workers，正式入口为 `dist/server/index.js` 的默认 `{fetch(request, env, ctx)}`。`server/worker.mjs` 只从运行时 `env.DIDA_API_KEY` 读取秘密。浏览器请求同一来源 `/api/*`；固定供应商 `https://didatickettest.wysiwysi.com/api/distribution/v1`。
 
-- 运行时：Node 24.5 或更高版本；服务器会使用当前系统的代理和 CA 信任配置。
-- 构建：仓库根目录运行 `npm ci`，然后 `npm run build`。
-- 启动：`NODE_ENV=production node server/index.mjs`，默认监听 `0.0.0.0:3000`。
-- 静态输出：`dist/`；API 入口：`server/index.mjs`。两者需要共同部署。
-- 进程检查：`GET /api/health`。返回 `configured: true` 仅表示存在密钥绑定，仍须发起商品查询确认供应商访问成功。
-- 服务器只从 `dist/` 提供公共静态资源，不应将仓库根目录或本地环境文件公开。
+Node 开发/本地生产和 Worker 共用 `server/gateway-core.mjs` 的路由白名单、参数限制、供应商响应大小限制、密钥脱敏及 BigInt 报价校验。Worker 完整比较 POST Origin；不转发浏览器 Authorization；拒绝供应商重定向；保留正常 TLS。
 
-配置通过托管平台的安全环境设置提供：
+Worker 的 `/api/orders` 只向供应商 `/orders/validate` 发送请求，返回 `mode: validated` 和本地草稿编号。没有真实订单创建、付款、取消或结算路由，legacy live环境变量不起作用。库存、日历和订单验证不缓存；目录成功响应短缓存。
 
-| 名称 | 用途 |
-| --- | --- |
-| `DIDA_API_KEY` | 必须。供应商测试 API 密钥；不得写入源码、前端 `VITE_*` 变量、构建产物或 DNS。 |
-| `PORT` | 平台指定的监听端口，默认 `3000`。 |
+限流由平台注入的 `cf-connecting-ip` 标识客户端，忽略 `x-forwarded-for`。每 isolate 每分钟180请求、POST额外20请求限额；这是内存级限流，不是全局分布式配额。平台重新生成env对象不重置网关；Secret变化则丢弃旧缓存。
 
-服务端固定执行订单校验和生成预订草稿，不需要订单模式或外部收银台地址配置。未来接入真实收银台需要单独确认订单参数与交接协议，超出本次 Demo 范围。
+`build-worker.mjs` 只嵌入 `dist/client/` 的公共 Vite产物，与网关一起打包成一个Worker，不需要猜测静态资源绑定。公开响应带CSP和安全头，隐藏文件、源码、环境文件无法读取。`.openai/hosting.json` 只有项目身份，不含秘密。
 
-## 按用户指定的 Sites 路径完成发布
+## 构建和验收
 
-1. 在有 Sites 原生能力的环境中读取仓库交接说明，创建或选择用户授权的项目，读取项目的实际构建、服务端运行时、环境变量合同。不要将 GitHub 推送成功当作网站发布成功。
-2. 核实运行时。若支持 Node HTTP 服务，可使用上述构建和启动配置。若仅支持 Worker，必须将网关移植为该平台支持的 `fetch` 处理器及静态资源绑定，保留固定上游、参数校验、限流、密钥脱敏、仅校验订单的边界与同源策略；原 Node 服务不能直接声称适配完成。
-3. 先检查已有安全凭据绑定的名称和状态，并测试真实商品读取；只有确实缺少时才通过 Sites 安全环境设置配置供应商密钥。不要将密钥写入 GitHub、命令、前端变量或日志。`/api/health` 的 `configured: true` 不能代替真实授权验证。运行代表性目的地、商品、详情、套餐日历请求，确认数据不是替代样例；发布前运行仓库构建及 API 测试。
-4. 使用 Sites 原生版本保存和发布流程，查询部署状态直至成功。先在平台默认 HTTPS 地址验收远程原图、活动入口到演示收银台的完整流程、价格变化处理和密钥隔离，保留证书验证。
-5. 默认地址通过后，再确认 Sites 原生能力是否支持外部自定义域名，在同一项目添加 `ant.devdemo.cc`；仅使用平台返回的准确 DNS 类型、主机记录和值，交给阿里云域名管理员配置。不要猜测 CNAME、IP 或验证 TXT。
-6. 等待域名所有权验证和 TLS 证书签发，通过 `https://ant.devdemo.cc` 再次检查首页、静态资源、API、浏览到预订草稿及演示收银台的流程和密钥隔离。本 Demo 在收银台停止，不实际创建供应商订单或结算。
-
-如果 Sites 不支持所需服务端运行时、密钥绑定或外部自定义域名，应报告具体能力缺口并等待可用的官方路径；不要静默改用其他托管平台。
-
-## 容器验证与交接
-
-仓库提供 `Dockerfile` 作为可审核的 Node 服务包装，便于托管兼容性验证；它不代表 Sites 接受容器，也不改变用户指定的发布路径。
-
-普通构建环境：
+Node 24.5+，使用锁文件：
 
 ```sh
-docker build -t rollinggo-ant .
+npm ci
+npm run build
+node scripts/validate-worker.mjs
+npm test
+npm start
 ```
 
-在 Codex 管理的代理环境中，用 BuildKit secret 挂载平台 CA，保持 TLS 和 npm 包完整性验证：
+`npm start` 的 Node静态根为 `dist/client/`，默认3000；Sites构建入口为 `dist/server/index.js`。不能单独上传前端。
 
-```sh
-docker build --secret id=proxy_ca,src="$CODEX_PROXY_CERT" -t rollinggo-ant .
-```
+本次 Node契约26/26、Worker契约25/25通过，编译Worker冒烟验证通过。移动端官方夹具验收与Figma证据见 `docs/figma/calibration.md`；夹具不在生产前端加载。
 
-本地容器运行时只传递已有服务端环境变量，不将密钥直接写在命令文本中：
+原环境真实商品105到DEMO收银台的历史结果保存在 `docs/verification.json`，不作为本次线上验收证据。复杂旅客字段与必填checkbox的供应商契约限制继续保留，见 `server/extra-info-contract.md`。
 
-```sh
-docker run --rm -p 3000:3000 \
-  -e DIDA_API_KEY \
-  rollinggo-ant
-```
+## 发布与后续
 
-管理环境运行容器还需按平台要求挂载 CA 并保留代理配置。容器的健康检查只验证进程响应，不能代替真实 API 与浏览器验证。这个容器包装的构建、运行结果应由当前任务实际验证后记录，不能仅根据命令存在宣称成功。
+通过 Sites官方源代码helper推送准确源状态并打包，通过原生版本/部署工具发布。保留项目ID及成功版本，不重新创建项目。修改Secret后，对已有保存版本重新部署以应用新env revision。
 
-## GitHub 交付与接续
+真实验收需先读 `/api/health`（存在状态而非凭据值），再检查城市/商品/详情/日历真实授权。使用合成联系人到DEMO收银台，检查图片、API及页面错误、手机溢出、最终报价，绝不创建真实订单或支付。
 
-源码、锁文件、测试及交接说明通过 GitHub 仓库交付；无需生成 tar 或单独归档。下一环境优先使用现有仓库检出，安装 Node 24.5+，执行 `npm ci`、`npm run build` 和 `npm test`，再以安全配置的服务端凭据启动并复核真实 API。当前任务已经隔离，无需额外创建 Git worktree。
-
-只允许提交无真实值的 `.env.example`。不要提交 `node_modules/`、真实环境文件、私钥、浏览器会话、代理配置、开发日志、本机缓存或含凭据的构建产物。生产 `dist/` 由目标环境从锁文件重新构建，并与同源 API 网关共同部署。GitHub 写入权限和提交结果由本次最终交接报告确认。
-
-## 已验证的数据接入与浏览流程
-
-本任务已通过服务端读取真实城市、商品列表、详情和套餐信息：测试数据包含 457 个城市、3,114 个商品；代表商品 `105` 返回 7 个套餐，成人单价 USD 33.43，选择 2 成人时页面按供应商单价计算 USD 66.86。价格属于当次测试环境的查询结果，并非固定报价或上线后价格承诺。
-
-默认文件系统沙箱下 7 项浏览器契约场景通过。最终真实验收在同一个受控执行上下文中启动新的 API 网关和 Chromium：商品 `105` 完整走到演示收银台，最终报价 USD 66.86，未创建供应商订单。商品及预订页面的供应商原图渲染成功，图片 `naturalWidth` 为 3000；图片失败、API 错误、页面异常均为 0，手机画面没有横向溢出。TLS 校验保留，验收结束后自动停止该临时网关。
-
-此前跨工具复用长期后台进程时曾出现商品详情 HTTP 401，根因尚未确认；同执行上下文的新网关与新浏览器检查已成功。这些结果证明所检查上下文的真实流程可用，但不能省略下一环境重新启动和供应商授权验证。最终构建及自动化测试汇总以本次交接报告为准。容器构建尚未验证。
-
-## 下一环境浏览器和认证复核
-
-先通过同一启动进程检查真实城市与商品详情成功，再运行 [浏览器验收](../tests/README.md) 中的脚本。`live_browser_smoke.py` 在空联系人预订页停止；`live_cashier_smoke.py` 仅使用供应商无副作用验证并检查演示收银台。两者都不能用于真实创建订单或付款。
-
-当前环境已用正常 TLS 校验成功取得供应商 JPEG，并在最终浏览器验收中成功渲染。此环境的 Chromium 需要读写既有 `/home/agent/.pki/nssdb`；仅允许工作区写入的沙箱曾阻止 NSS 初始化并表现为 `ERR_CERT_AUTHORITY_INVALID`。必要的运行器文件访问权限已在受控验收中提供。若下一环境出现同类问题，应让执行工具授予该浏览器进程对其既有 NSS 目录的必要访问，再保留 TLS 校验重试。不要重设 `HOME`、覆盖 NSS 数据库、关闭 TLS 验证、设置 `ignore_https_errors` 或把浏览器状态写入仓库。
-
-商品详情 HTTP 401 与图片证书错误属于不同层级。检查失败进程使用的安全凭据绑定及平台代理注入是否与成功进程一致，分别保存不含凭据的响应状态。不要仅因一次 401 重复索取密钥，也不要绕过代理、强制直连或将代理持有的凭据提取到文件。`configured: true` 只说明环境变量存在，无法证明供应商已接受认证。
-
-## 此次外部访问观察
-
-保存后的运行时配置已报告 revision 4，以及 `ant.devdemo.cc`、`didatickettest.wysiwysi.com`、`www.figma.com`、`www.klook.com` 四个域名。`observations_current` 为 true，但网络策略的 `state` 仍为 `unknown`，不能仅依据域名列入清单宣称代理已执行允许策略。启动时 `/etc/codex/network-policy.json` 快照仍只有供应商域名；该文件不是动态政策的最终证据。
-
-重新通过环境继承的 HTTPS 代理检查后：
-
-| 目标 | 观察 | 对后续操作的含义 |
-| --- | --- | --- |
-| `ant.devdemo.cc` | CONNECT 403，代理正文 `No approved upstream IPv4 address` | 连接尚未到达网站。域名接入为 Sites 发布后的后续步骤；目前不能据此断言 DNS 不存在。 |
-| `www.figma.com` | CONNECT 403，代理正文 `Domain forbidden` | 在代理域名策略层被拒绝；尚未检查文件访问权限、登录或画面。需要环境平台确认已保存允许项的执行状态，或使用用户导出的 Figma 画面和样式文件。 |
-| `www.klook.com` | CONNECT 200，目标 HTTP 403；返回页面含 CAPTCHA 标记 | 网络通道已建立，但正常页面未获得。可使用提供的页面截图作为展示参考，不尝试绕过验证。 |
-| `didatickettest.oss-cn-hongkong.aliyuncs.com` | 早期图片请求曾 CONNECT 403；后来供应商原图 GET 返回 HTTP 200、`image/jpeg`，完整接收 1,194,300 字节；最终新浏览器中商品与预订页原图 `naturalWidth` 为 3000、图片失败为 0 | 当前检查上下文中远程原图获取与浏览器渲染均已验证。下一环境保持 TLS 校验并复核运行器所需访问权限。 |
-| 供应商 API、文档、npm registry | 商品与套餐真实查询成功；文档及 registry HTTP 200 | 独立的数据接入和构建准备已能继续。 |
-
-图片域名已写入后续网络配置草稿 revision 6；最新运行时状态仍报告 revision 4 和网络状态 `unknown`。直接图片请求后来成功，说明应以实际操作结果持续复核，而不能把先前的拒绝描述为永久阻断。草稿保存、原图访问成功均不等于网站发布。
-
-图片访问恢复后已重新检查用户指定的 Figma frame 和 ANT 域名：两者仍在代理 CONNECT 阶段返回 403，尚未获得目标网站 HTTP 响应；拒绝正文分别仍为 `Domain forbidden` 和 `No approved upstream IPv4 address`。
-
-配置保存后 Sites 原生工具仍未出现在当前会话。上述诊断没有变更 DNS、尝试直连、绕过环境代理或调用私有发布接口。
+默认URL通过后，在同一项目添加 `ant.devdemo.cc`，按返回记录交由阿里云DNS管理员配置，等待所有权与TLS完成，再检查自定义域名同源/API流程。

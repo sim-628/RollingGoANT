@@ -199,3 +199,34 @@
   .detail-skeleton-hero { margin: 0 -20px; border-radius: 0; width: calc(100% + 40px); }
 }
 @media (prefers-reduced-motion: reduce) { .detail-skeleton { animation: none; } }
+
+/* Activity layouts keep live API imagery and adopt the RollingGo Figma language. */
+.detail-page{--detail-accent:#000947;--detail-text:rgba(0,0,0,.9);--detail-muted:rgba(0,0,0,.6);background:#f3f3f3}
+.detail-page button:focus-visible,.detail-page a:focus-visible,.detail-page summary:focus-visible{outline-color:#818abc}
+.detail-toolbar>span{font-size:16px;font-weight:600}
+.detail-main-grid{gap:8px}
+.detail-heading{padding:20px 16px 16px}
+.detail-heading h1{font-size:20px;line-height:28px;font-weight:600;letter-spacing:0}
+.detail-eyebrow{font-size:12px;color:var(--detail-muted);line-height:20px}
+.detail-location,.detail-subtitle{font-size:12px;line-height:20px;color:var(--detail-muted)}
+.detail-top-price strong,.detail-desktop-summary strong,.detail-mobile-booking strong{color:#e90245;font-size:22px;font-weight:600}
+.detail-section-nav button{font-size:14px;font-weight:600}
+.detail-booking-panel,.detail-content-card{padding:20px 16px}
+.detail-content-card h2,.detail-booking-title h2{font-size:18px;line-height:26px;font-weight:600;letter-spacing:0}
+.detail-title-icon{border-radius:8px;background:#f2f3f9;color:#000947}
+.detail-package-card{border-radius:8px;border-color:#e8e8e8}
+.detail-package-card strong{font-weight:600}
+.detail-package-card.selected{background:#f2f3f9}
+.detail-package-card:hover{border-color:#00094766}
+.detail-calendar{border-radius:8px;border-color:#e8e8e8}
+.detail-calendar-day{border-radius:4px}
+.detail-calendar-day:not(:disabled):hover{background:#f2f3f9}
+.detail-calendar-day>small,.detail-calendar-weekdays span:nth-child(n+6){color:var(--detail-muted)}
+.detail-time-slots button{border-radius:6px}
+.detail-time-slots button.selected{color:#000947;background:#f2f3f9}
+.detail-primary{border-radius:6px;font-weight:600;box-shadow:none}
+.detail-primary:not(:disabled):hover{background:#182363}
+.detail-primary:disabled{background:#b2b5ce}
+.detail-mobile-booking .detail-primary{border-radius:6px}
+.detail-empty h2{font-weight:600}
+.detail-text-button{color:#000947}

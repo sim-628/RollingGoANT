@@ -3,15 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=24.5" },
+  "engines": {
+    "node": ">=24.5"
+  },
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:web": "vite --host 0.0.0.0",
     "dev:api": "node server/index.mjs",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build --outDir dist/client && node scripts/build-worker.mjs",
     "start": "NODE_ENV=production node server/index.mjs",
     "test": "node --test server/*.test.mjs",
-    "check": "tsc -b"
+    "check": "tsc -b",
+    "build:web": "tsc -b && vite build --outDir dist/client"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
@@ -22,6 +25,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",
+    "esbuild": "0.25.12",
     "typescript": "^5.7.2",
     "vite": "^6.0.5"
   }

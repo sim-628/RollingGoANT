@@ -81,7 +81,13 @@ def test_required_destination_and_optional_fields(browser, origin):
         expect(page.get_by_role("alert")).to_have_text("请先选择一个目的地")
         assert len(router.calls("/api/catalog/products")) == before
         page.get_by_role("dialog").get_by_role("button", name=re.compile(r"Tokyo.*Japan")).click()
-        page.get_by_role("button", name="搜索活动", exact=True).click()
+        # Wait for the new destination response before inspecting its image.
+        # The previous catalogue uses the same fixture title and is replaced
+        # while a smooth scroll is still settling.
+        with page.expect_response(lambda response: "/api/catalog/products?" in response.url
+                                  and "city_codes=215" in response.url):
+            page.get_by_role("button", name="搜索活动", exact=True).click()
+        expect(page.get_by_label("正在加载活动", exact=True)).to_have_count(0)
         expect(page.get_by_role("heading", name=re.compile(r"Tokyo · 活动体验"))).to_be_visible()
         expect(page.get_by_role("heading", name=TITLE, exact=True)).to_be_visible()
         params = router.calls("/api/catalog/products")[-1]["params"]

@@ -9,3 +9,6 @@ playwright-report/
 __pycache__/
 *.py[cod]
 .pytest_cache/
+
+.sites-runtime/
+.sites-checkout*/

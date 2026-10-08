@@ -3,3 +3,29 @@
 @media(min-width:700px){.site-stage{padding:30px 0 60px;background:radial-gradient(ellipse at 10% 0,#fff0e9,transparent 48%),radial-gradient(ellipse at 90% 100%,#e7edf2,transparent 50%),#f5f6f8}.mobile-app{min-height:calc(100dvh - 90px);border-radius:24px;overflow:clip;box-shadow:0 20px 70px #343b5116}.desktop-signature{display:flex;gap:15px;align-items:center;justify-content:center;color:#adb2bc;font-size:10px;padding:20px 0;background:#fff}.desktop-signature b{color:#f18b66;font-size:9px;margin-left:3px}.booking-bottom{border-radius:0 0 16px 16px}.booking-page .simple-topbar,.confirmation-page .simple-topbar{border-radius:24px 24px 0 0}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
 .booking-image{width:76px;height:80px;border-radius:10px;overflow:hidden;background:#f1f3f5;color:#a3a8b1;display:flex;align-items:center;justify-content:center}.booking-image img{width:100%;height:100%;object-fit:cover}
+
+/* RollingGo Figma tokens, read from 3527:5152 and 2957:28207. */
+:root{font-family:"PingFang SC",-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans GB","Microsoft YaHei",sans-serif;--accent:#000947;--accent-dark:#182363;--muted:rgba(0,0,0,.6);--border:#e8e8e8;--radius:8px;background:#f3f3f3;color:rgba(0,0,0,.9)}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline-color:#818abc}
+.primary-button{border-radius:6px;font-weight:600;box-shadow:none}
+.surface-card{border-radius:8px}
+.ant-badge{border-color:#00094733;color:#000947}
+.booking-page,.confirmation-page{background:#f3f3f3}
+.simple-topbar{font-size:16px;font-weight:600}
+.booking-progress{font-size:12px}
+.booking-summary h1{font-size:16px;font-weight:600}
+.booking-summary p,.summary-detail>span{font-size:12px;line-height:20px}
+.form-card{padding:16px}
+.section-label h2{font-weight:600}
+.section-step{border-radius:6px;background:#f2f3f9}
+.field-label{font-size:14px;font-weight:600;line-height:22px}
+.field-label>span{color:#e90245}
+.field-label input,.field-label select{border-radius:6px}
+.field-label input:focus,.field-label select:focus{box-shadow:0 0 0 3px #0009470a}
+.nested-fields{border-left-color:#f2f3f9}
+.booking-bottom strong,.receipt-total strong{color:#e90245}
+.booking-bottom{background:#fff}
+.booking-image{border-radius:8px}
+.receipt-card{padding:20px 16px}
+.confirmation-page>h1{font-size:24px;font-weight:600}
+@media(min-width:700px){.site-stage{background:#f3f3f3}.mobile-app{border-radius:8px}.desktop-signature b{color:#000947}.booking-bottom{border-radius:0 0 8px 8px}.booking-page .simple-topbar,.confirmation-page .simple-topbar{border-radius:8px 8px 0 0}}
