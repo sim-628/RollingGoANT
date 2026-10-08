@@ -126,9 +126,9 @@ def main():
             assert starting_price and starting_price["status"] == "ready", "No real starting price returned for this product"
             report["catalog_starting_price"] = starting_price
             save(page, "08-home")
-            page.get_by_role("button", name="搜索目的地或活动", exact=True).click()
+            page.get_by_role("button", name="搜索目的地/活动", exact=True).click()
             expect(page).to_have_url(re.compile(r"/#/search(?:\?|$)"))
-            page.get_by_role("textbox", name="搜索目的地或活动", exact=True).fill(product["city_name"])
+            page.get_by_role("textbox", name="搜索目的地/活动", exact=True).fill(product["city_name"])
             city_button = page.locator(f'.ant-search-city[data-city-code="{product["city_code"]}"]')
             expect(city_button).to_be_visible(timeout=30000)
             cities = api_data["/api/catalog/cities"]["data"]

@@ -44,7 +44,7 @@ function ProductImage({ product, className = '' }: { product: CatalogProduct; cl
   return src && !failed ? <img className={className} src={src} alt={product.title} loading="lazy" onError={() => setFailed(true)} /> : <div className={`cat-image-placeholder ${className}`}><CatalogIcon name="image" size={36}/><span>探索精彩活动</span></div>;
 }
 
-export default function Catalog({ mode, onOpenProduct, search, activeSearch, onSearchChange, onSearch, onHome, onOpenSearch }: Props) {
+export default function Catalog({ mode, onOpenProduct, activeSearch, onSearchChange, onSearch, onHome, onOpenSearch }: Props) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [startingPrices, setStartingPrices] = useState<Record<string, StartingPrice>>({});
@@ -132,7 +132,6 @@ export default function Catalog({ mode, onOpenProduct, search, activeSearch, onS
     else onSearch(next);
   }
 
-  const searchLabel = search.keyword || (search.destination ? placeNameZh(search.destination.name) : '想要搜什么');
   const resultTitle = activeSearch.destination
     ? `${placeNameZh(activeSearch.destination.name)}${activeSearch.category ? ` · ${categoryNameZh(activeSearch.category.name)}` : '活动'}`
     : activeSearch.keyword ? `“${activeSearch.keyword}”的搜索结果`
@@ -142,14 +141,14 @@ export default function Catalog({ mode, onOpenProduct, search, activeSearch, onS
     {submitted ? <header className="cat-list-header">
       <button className="cat-icon-button" aria-label="返回首页" onClick={onHome}><span className="cat-back-icon"><CatalogIcon name="chevron"/></span></button>
       <h1>活动列表</h1><span className="cat-list-header-spacer"/>
-    </header> : <header className="cat-header"><div className="cat-header-inner"><button className="cat-brand" onClick={onHome} aria-label="RollingGo 首页"><span className="cat-brand-mark">r<span/></span><span>Rolling<span className="cat-brand-go">Go</span><small>ANT · 活动体验</small></span></button><nav className="cat-desktop-nav" aria-label="主导航"><button onClick={() => setToast('酒店预订请前往 RollingGo 主站')}>酒店</button><button onClick={() => setToast('机票预订请前往 RollingGo 主站')}>机票</button><button className="active" onClick={onHome}>活动体验</button></nav><div className="cat-header-actions"><span className="cat-currency"><CatalogIcon name="globe" size={16}/> 简体中文</span></div></div></header>}
+    </header> : <header className="cat-header"><div className="cat-header-inner"><button className="cat-brand" onClick={onHome} aria-label="RollingGo 首页"><span><img className="cat-brand-logo" src="/design/rollinggo-logo.svg" alt="RollingGo" width="134" height="30"/><small>您的下一次旅程，从这里开始</small></span></button><nav className="cat-desktop-nav" aria-label="主导航"><button onClick={() => setToast('酒店预订请前往 RollingGo 主站')}>酒店</button><button onClick={() => setToast('机票预订请前往 RollingGo 主站')}>机票</button><button className="active" onClick={onHome}>活动体验</button></nav><div className="cat-header-actions"><span className="cat-currency"><CatalogIcon name="globe" size={16}/> 简体中文</span></div></div></header>}
 
 
     <main className={`cat-main ${submitted ? 'cat-list-main' : ''}`}>
       {!submitted && <section className="cat-hero">
         <div className="cat-search-panel">
           <div className="cat-service-tabs" role="tablist" aria-label="旅行服务"><button role="tab" aria-selected={false} onClick={() => setToast('酒店预订请前往 RollingGo 主站')}>酒店</button><button role="tab" aria-selected={false} onClick={() => setToast('机票预订请前往 RollingGo 主站')}>机票</button><button role="tab" aria-selected={true} className="active">活动</button></div>
-          <div className="cat-search-fields"><button className="cat-search-field cat-destination-field" aria-label="搜索目的地或活动" onClick={onOpenSearch}><CatalogIcon name="search"/><span><small>目的地或活动</small><strong className={!search.destination && !search.keyword ? 'is-placeholder' : ''}>{searchLabel}</strong></span><CatalogIcon name="chevron" size={17}/></button><button className="cat-primary-button cat-search-button" onClick={onOpenSearch}>查询</button></div>
+          <div className="cat-search-fields"><button className="cat-search-field cat-destination-field" aria-label="搜索目的地/活动" onClick={onOpenSearch}><CatalogIcon name="search"/><span><strong className="is-placeholder">搜索目的地/活动</strong></span></button><button className="cat-primary-button cat-search-button" onClick={onOpenSearch}>查询</button></div>
         </div>
       </section>}
 

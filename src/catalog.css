@@ -91,3 +91,8 @@
 .cat-list-search{display:flex;align-items:center;gap:9px;width:100%;min-height:44px;border:1px solid #ececee;border-radius:24px;background:#f5f5f5;color:#62626b;padding:10px 14px;margin-bottom:16px;text-align:left;font-size:14px}
 .cat-list-search>span:first-of-type{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cat-list-search .cat-list-search-edit{flex:none;font-size:12px;color:#000947}
+.cat-header{height:160px}
+.cat-header-inner{padding-top:32px}
+.cat-brand-logo{display:block;width:134px;height:30px}
+.cat-brand small{font-size:14px;line-height:22px;font-weight:600;margin-top:6px}
+.cat-destination-field strong.is-placeholder{font-size:14px;line-height:22px}

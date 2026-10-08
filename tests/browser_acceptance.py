@@ -56,11 +56,11 @@ def screenshot(page, name):
 
 
 def search_box(page):
-    return page.get_by_role("textbox", name="搜索目的地或活动", exact=True)
+    return page.get_by_role("textbox", name="搜索目的地/活动", exact=True)
 
 
 def choose_destination(page):
-    page.get_by_role("button", name="搜索目的地或活动", exact=True).click()
+    page.get_by_role("button", name="搜索目的地/活动", exact=True).click()
     expect(page).to_have_url(re.compile(r"/#/search(?:\?|$)"))
     search_box(page).fill("东京")
     city = page.locator('.ant-search-city[data-city-code="215"]')
@@ -224,7 +224,7 @@ def test_search_reload_and_close_returns_originating_list(browser, origin):
 
 def test_search_keyword_can_search_all_activities(browser, origin):
     with mobile_page(browser, origin) as (page, router):
-        page.get_by_role("button", name="搜索目的地或活动", exact=True).click()
+        page.get_by_role("button", name="搜索目的地/活动", exact=True).click()
         expect(page).to_have_url(re.compile(r"/#/search(?:\?|$)"))
         search_box(page).fill("游船")
         search_box(page).press("Enter")
@@ -239,7 +239,7 @@ def test_search_keyword_can_search_all_activities(browser, origin):
 def test_search_category_suggestion_submits_immediately(browser, origin):
     categories = [{"category_code": "20101", "category_name": "Theme Parks"}]
     with mobile_page(browser, origin, categories=categories) as (page, router):
-        page.get_by_role("button", name="搜索目的地或活动", exact=True).click()
+        page.get_by_role("button", name="搜索目的地/活动", exact=True).click()
         search_box(page).fill("东京")
         group = page.locator(".ant-search-city-group").filter(has=page.locator('.ant-search-city[data-city-code="215"]'))
         category = group.locator('.ant-search-category[data-category-code="20101"]')

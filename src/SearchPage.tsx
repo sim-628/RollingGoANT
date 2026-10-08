@@ -102,11 +102,11 @@ export default function SearchPage({ initialSearch, onSearch, onClose }: Props) 
   }
 
   return <div className="ant-search-page">
-    <header className="ant-search-brand"><span>RollingGo<small>ANT · 活动体验</small></span><span className="ant-search-brand-label">搜索</span></header>
+    <header className="ant-search-brand"><span className="ant-search-logo" role="img" aria-label="RollingGo"/><span className="ant-search-brand-label">搜索</span></header>
     <div className="ant-search-bar-row">
       <button className="ant-search-close" aria-label="关闭搜索" onClick={onClose}><X size={23} /></button>
       <form className="ant-search-form" role="search" onSubmit={event => { event.preventDefault(); submit(); }}>
-        <input ref={input} aria-label="搜索目的地或活动" placeholder="想要搜什么" autoComplete="off" maxLength={128} value={query} onChange={event => setQuery(event.target.value)} onCompositionStart={() => { composing.current = true; }} onCompositionEnd={() => { composing.current = false; }} onKeyDown={event => { if (composing.current || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) { if (event.key === 'Enter') event.preventDefault(); return; } if (event.key === 'Escape') onClose(); }} />
+        <input ref={input} aria-label="搜索目的地/活动" placeholder="想要搜什么" autoComplete="off" maxLength={128} value={query} onChange={event => setQuery(event.target.value)} onCompositionStart={() => { composing.current = true; }} onCompositionEnd={() => { composing.current = false; }} onKeyDown={event => { if (composing.current || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) { if (event.key === 'Enter') event.preventDefault(); return; } if (event.key === 'Escape') onClose(); }} />
         {query && <button type="button" className="ant-search-clear" aria-label="清除搜索" onClick={() => { setQuery(''); input.current?.focus(); }}><X size={14} /></button>}
         <button type="submit" className="ant-search-submit" aria-label="提交搜索" disabled={!trimmed}><Search size={19} /></button>
       </form>
