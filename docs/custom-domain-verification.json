@@ -1,0 +1,74 @@
+{
+  "mode": "live-demo-validation",
+  "synthetic_contact": true,
+  "api_calls": [
+    {
+      "method": "GET",
+      "path": "/api/catalog/cities"
+    },
+    {
+      "method": "GET",
+      "path": "/api/catalog/categories"
+    },
+    {
+      "method": "GET",
+      "path": "/api/catalog/products"
+    },
+    {
+      "method": "GET",
+      "path": "/api/catalog/products/105"
+    },
+    {
+      "method": "GET",
+      "path": "/api/catalog/skus/calendar"
+    },
+    {
+      "method": "GET",
+      "path": "/api/catalog/packages/extra-info"
+    },
+    {
+      "method": "POST",
+      "path": "/api/availability-check"
+    },
+    {
+      "method": "POST",
+      "path": "/api/availability-check"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/validate"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders"
+    }
+  ],
+  "api_errors": [],
+  "blocked": [],
+  "page_errors": [],
+  "image_failures": [],
+  "gateway_mode": "validate",
+  "product_image_natural_width": 3000,
+  "booking_image_natural_width": 3000,
+  "cashier_reached": true,
+  "supplier_order_created": false,
+  "draft_id": "ANT-f750b5a7-6021-4f52-b068-09b16f5dd60c",
+  "quote_currency": "USD",
+  "quote_total": "66.86",
+  "mobile_overflow": false,
+  "image_failure_count": 0,
+  "site_url": "https://ant.devdemo.cc",
+  "audience": "public",
+  "authentication": "anonymous; no Sites bypass token",
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "browser": "Chrome mobile emulation"
+  },
+  "verified_date": "2026-10-08",
+  "env_secret_name": "DIDA_API_KEY",
+  "env_secret_revision": 1,
+  "physical_phone_verified": false,
+  "domain_status": "active",
+  "tls_status": "active"
+}

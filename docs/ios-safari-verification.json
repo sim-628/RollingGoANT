@@ -1,0 +1,32 @@
+{
+  "verified_date": "2026-10-08",
+  "site_url": "https://rollinggo-ant.pushen987.chatgpt.site",
+  "browser": "iPhone Simulator Safari",
+  "device": "iPhone 17",
+  "ios_version": "26.5",
+  "physical_phone_verified": false,
+  "interaction_scope": "Read-only home, live catalogue, and product 105 detail",
+  "home_rendered": true,
+  "real_city_names_visible": true,
+  "live_catalogue_titles_and_images_visible": true,
+  "product_code": "105",
+  "product_title": "吉隆坡出发马六甲历史古城一日游（可选午餐）",
+  "product_image_visible": true,
+  "gallery_image_count_visible": 21,
+  "adult_unit_price_visible": "USD 33.43",
+  "two_adult_total_visible": "USD 66.86",
+  "price_observation_only": true,
+  "tls_warning_observed": false,
+  "tls_validation_disabled": false,
+  "contact_details_entered": false,
+  "booking_button_clicked": false,
+  "safari_cashier_flow_verified": false,
+  "package_list_below_fold_verified": false,
+  "limitation": "Cua native coordinate and scrolling actions became unreliable with noWindowsAvailable errors. Additional attempts were stopped at the parent task's instruction after live home/catalogue/product evidence was captured. The complete DEMO cashier flow was separately verified in anonymous Chrome mobile emulation.",
+  "screenshots": [
+    "ios-safari-home.png",
+    "ios-safari-catalog.png",
+    "ios-safari-product105.png"
+  ],
+  "simulator_final_state": "Safari showing product 105 detail; no device, Safari, certificate, or other app configuration changed"
+}

@@ -6,9 +6,9 @@
 
 已接手 main（原始提交 `dac9e77`），真实读取两个指定 Figma 节点并校准视觉。已新增正式的 Cloudflare Worker `fetch` 网关，与 Node 共用输入及报价契约；构建同时生成前端和同源 API，不是仅上传静态页面。
 
-Sites 项目：`appgprj_6ac76e7113d4819198e9d90830476ccc`。初始安全环境检查为空，本机没有继承 `DIDA_API_KEY`；随后已通过 Sites 原生安全设置绑定同名 Secret（revision 1），并重新部署应用。默认 HTTPS 地址已发布，完整真实流程验收正在进行。历史联调记录不代表本次线上验收。
+Sites 项目：`appgprj_6ac76e7113d4819198e9d90830476ccc`。初始安全环境检查为空，本机没有继承 `DIDA_API_KEY`；随后已通过 Sites 原生安全设置绑定同名 Secret（revision 1），并重新部署应用。默认 HTTPS 地址 https://rollinggo-ant.pushen987.chatgpt.site 已公开发布；自定义域名 https://ant.devdemo.cc 的 DNS、所有权及 TLS 均已就绪。匿名 Chrome 手机视口真实 API 流程已通过，演示止于 DEMO 收银台；证据见 `docs/sites-verification.json` 和 `docs/custom-domain-verification.json`。历史联调记录不代表本次线上验收。
 
-原 Node 契约 26 项与 Worker 契约 25 项通过，官方夹具手机交互 7/7 通过。当前 Figma 依据见 `docs/figma/calibration.md`；当前部署路径见 `deployment/README.md`。
+原 Node 契约 26 项与 Worker 契约 26 项通过，官方夹具手机交互 7/7 通过。当前 Figma 依据见 `docs/figma/calibration.md`；当前部署路径见 `deployment/README.md`。
 
 ## 已实现
 
@@ -68,13 +68,13 @@ python3 tests/live_cashier_smoke.py --base-url http://127.0.0.1:5175
 
 当前实例已安全绑定供应商凭据，并验证 **457 个城市、3,114 个商品**。真实商品 105 的七个套餐、实际行程内容、附加资料规则和成人价格日历已接入；示例日期成人单价 US$33.43，最低两人合计 US$66.86。实时价格和库存仍可能变化。
 
-26 项 API 契约测试和 7 项手机模拟验收通过。真实手机检查使用合成资料完成详情、日期选择、预订资料和演示收银台，供应商校验报价 USD 66.86，未创建订单或支付，图片及 API／页面错误数均为 0。最终验收需网关与浏览器处于同一受控执行上下文；旧后台进程曾出现未明原因的 401。公开交接证据见 [docs/verification.json](docs/verification.json)，截图见 [交接文档](HANDOFF.md)。
+Node/Worker 52 项 API 契约与 7 项官方夹具手机交互通过。本次匿名 Chrome 390×844 手机视口使用合成资料完成真实详情、日期、资料和 DEMO 收银台，供应商当次校验报价 USD 66.86，未创建订单或支付，图片及 API／页面错误为 0。iPhone Simulator Safari 另已只读验证首页、真实目录和商品105详情；未验证 Safari 完整收银台。本机没有可访问实体手机，物理真机验收尚未完成。当前证据见 [docs/sites-verification.json](docs/sites-verification.json)、[docs/custom-domain-verification.json](docs/custom-domain-verification.json) 和 [docs/ios-safari-verification.json](docs/ios-safari-verification.json)；[docs/verification.json](docs/verification.json) 仅保留原环境历史结果。
 
 ## 外部依赖
 
 1. **Figma 校准**：本次已通过 Figma MCP 读取指定首页及视觉参考画面，完成主色、价格色、卡片及手机搜索区域校准。由于活动 Demo 与原酒店首页的内容不同，属于基于设计语言的校准，不能称为所有页面逐像素完全复刻。
 2. **附加资料提交契约**：代表日游已用供应商无副作用校验确认 `content`／`selected` 及每位旅客的 `sku_code`／从 1 开始的 `index`。非空旅客字段的精确提交容器尚未验证；含必填 checkbox 的已知不兼容套餐会提示选择其他套餐。详见 `server/extra-info-contract.md`。
 3. **场次**：实际日历缺少场次列表的套餐会提示无法预订，不生成虚构时间。
-4. **发布**：本次 Sites 原生能力可用，已经创建项目；发布与真实验收状态以 [发布交接](deployment/README.md) 的当前记录为准。默认地址验收通过前不接 `ant.devdemo.cc`。
+4. **发布**：本次 Sites 原生能力可用，已经创建项目；发布与真实验收状态以 [发布交接](deployment/README.md) 的当前记录为准。默认地址验收通过后已接入 `ant.devdemo.cc`。
 
 后续部署请先读 [HANDOFF.md](HANDOFF.md) 和 [NEXT_AGENT_PROMPT.md](NEXT_AGENT_PROMPT.md)。服务契约详见 [server/README.md](server/README.md)，浏览器验证方式详见 [tests/README.md](tests/README.md)。

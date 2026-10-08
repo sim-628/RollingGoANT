@@ -1,0 +1,41 @@
+{
+  "verified_date": "2026-10-08",
+  "zone": "devdemo.cc",
+  "provider": "Alibaba Cloud International DNS",
+  "authoritative_nameservers": [
+    "ns7.alidns.com",
+    "ns8.alidns.com"
+  ],
+  "records": [
+    {
+      "type": "CNAME",
+      "host": "ant",
+      "value": "custom-domains.chatgpt.site.",
+      "ttl_seconds": 600,
+      "enabled": true
+    },
+    {
+      "type": "TXT",
+      "host": "_openai-site-verification.ant",
+      "value": "openai-site-verification=gxZUf9KDsofYlzuhCgRzjZlnKgXwDexbwc-rU99YMuk",
+      "ttl_seconds": 600,
+      "enabled": true
+    },
+    {
+      "type": "TXT",
+      "host": "_cf-custom-hostname.ant",
+      "value": "2bec74cf-7c6e-4c4d-af93-24d74778d82c",
+      "ttl_seconds": 600,
+      "enabled": true
+    }
+  ],
+  "readback_matches": true,
+  "both_authoritative_nameservers_match": true,
+  "original_record_count": 6,
+  "current_record_count": 9,
+  "original_six_records_unchanged": true,
+  "nameservers_unchanged": true,
+  "site_domain_status": "active",
+  "tls_status": "active",
+  "sites_status_timestamp": "2026-10-08T10:54:12Z"
+}
