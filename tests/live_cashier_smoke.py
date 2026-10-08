@@ -46,7 +46,8 @@ def main():
         allowed_post = same_origin and parsed.path in {
             "/api/availability-check", "/api/orders/validate", "/api/orders"
         }
-        if (request.method not in {"GET", "HEAD"} and not (request.method == "POST" and allowed_post)) or "/pay" in parsed.path:
+        platform_post = same_origin and parsed.path.startswith("/cdn-cgi/challenge-platform/")
+        if (request.method not in {"GET", "HEAD"} and not (request.method == "POST" and (allowed_post or platform_post))) or "/pay" in parsed.path:
             report["blocked"].append({"method": request.method, "path": parsed.path})
             route.abort()
             return

@@ -76,8 +76,14 @@ export function createWorkerGateway(options = {}) {
         method,
         headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json', 'Accept-Language': 'zh-CN', ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}) },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-        redirect: 'error', signal: AbortSignal.timeout(timeoutMs),
+        // Workers supports manual/follow only. Manual keeps credentials on the
+        // fixed supplier origin, and every redirect is explicitly refused.
+        redirect: 'manual', signal: AbortSignal.timeout(timeoutMs),
       });
+      if (response.status >= 300 && response.status < 400) {
+        await response.body?.cancel();
+        throw new HttpError(502, 'UPSTREAM_REDIRECT', '供应商返回了不受支持的跳转，请稍后重试');
+      }
       return { status: response.status, data: await parseUpstream(response) };
     } catch (error) {
       if (error instanceof HttpError) throw error;

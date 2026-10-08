@@ -61,9 +61,25 @@ test('Worker fixes the supplier URL and server authentication, never browser aut
   const headers = new Headers(calls[0].init.headers);
   assert.equal(headers.get('authorization'), `Bearer ${testKey}`);
   assert.equal(headers.get('accept-language'), 'zh-CN');
-  assert.equal(calls[0].init.redirect, 'error');
+  assert.equal(calls[0].init.redirect, 'manual');
   assert.ok(calls[0].init.signal instanceof AbortSignal);
   assert.equal((await response.text()).includes(testKey), false);
+});
+
+test('Worker rejects redirects without following Location or forwarding credentials to another origin', async () => {
+  for (const status of [301, 302, 303, 307, 308]) {
+    const { fetch, calls } = app({ fetchImpl: async () => new Response(null, {
+      status, headers: { Location: 'https://unrelated.example/collect-credentials' },
+    }) });
+    const response = await fetch('/api/catalog/countries');
+    assert.equal(response.status, 502, String(status));
+    assert.equal((await response.json()).error.code, 'UPSTREAM_REDIRECT');
+    assert.equal(calls.length, 1, 'A redirect must never issue a second outbound request');
+    assert.equal(calls[0].url, UPSTREAM + '/countries');
+    assert.equal(calls[0].init.redirect, 'manual');
+    assert.equal(new Headers(calls[0].init.headers).get('authorization'), `Bearer ${testKey}`);
+    assert.equal(calls.some(call => new URL(call.url).origin === 'https://unrelated.example'), false);
+  }
 });
 
 test('Worker maps every approved supplier read endpoint and preserves string product codes', async () => {

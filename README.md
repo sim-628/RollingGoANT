@@ -6,7 +6,7 @@
 
 已接手 main（原始提交 `dac9e77`），真实读取两个指定 Figma 节点并校准视觉。已新增正式的 Cloudflare Worker `fetch` 网关，与 Node 共用输入及报价契约；构建同时生成前端和同源 API，不是仅上传静态页面。
 
-Sites 项目：`appgprj_6ac76e7113d4819198e9d90830476ccc`。新项目安全环境变量检查为空，本机没有继承 `DIDA_API_KEY`。须由用户在 Sites 安全设置添加同名 Secret，后续部署应用该环境版本后再做真实供应商验收。历史联调记录不代表本项目已绑定或已验收。
+Sites 项目：`appgprj_6ac76e7113d4819198e9d90830476ccc`。初始安全环境检查为空，本机没有继承 `DIDA_API_KEY`；随后已通过 Sites 原生安全设置绑定同名 Secret（revision 1），并重新部署应用。默认 HTTPS 地址已发布，完整真实流程验收正在进行。历史联调记录不代表本次线上验收。
 
 原 Node 契约 26 项与 Worker 契约 25 项通过，官方夹具手机交互 7/7 通过。当前 Figma 依据见 `docs/figma/calibration.md`；当前部署路径见 `deployment/README.md`。
 

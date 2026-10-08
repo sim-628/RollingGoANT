@@ -6,7 +6,7 @@
 - 正式 Worker 网关：`server/worker.mjs`；Node/Worker 共用契约：`server/gateway-core.mjs`。
 - `npm run build` 生成 `dist/client/` 与 `dist/server/index.js`；`scripts/validate-worker.mjs` 验证实际编译入口及静态/API隔离。
 - Node 26 项与 Worker 25 项契约测试通过；测试响应为 mock，不代表真实供应商联调。
-- 新项目环境变量为空，本机未继承 `DIDA_API_KEY`。已经请用户在项目安全设置添加同名 Secret，禁止在聊天提供密钥。真实手机商品流程和域名接入须等待该绑定及上线验收。
+- 初始环境变量为空、本机未继承 `DIDA_API_KEY`；后续已通过原生安全设置绑定同名 Secret（revision 1），默认 HTTPS 地址发布成功。真实手机验收正在进行，通过后才接域名。
 - 详细部署结果后续记录在 `deployment/README.md`。不复用原环境的凭据，也不伪造数据兜底。
 
 以下是原环境的历史交接记录。其真实数据、价格、截图和工具限制均属于当时环境，不是本次 Sites 验收结果。

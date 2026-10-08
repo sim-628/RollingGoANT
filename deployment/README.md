@@ -6,15 +6,15 @@
 
 Sites 项目 `appgprj_6ac76e7113d4819198e9d90830476ccc` 已创建，默认来源由平台返回。部署成功后的真实地址与版本将在此记录。
 
-新项目安全配置检查为 revision 0、无变量。本机 `DIDA_API_KEY` 存在状态为 false。已请求用户在 Sites 项目安全设置绑定 **DIDA_API_KEY（Secret）**；不在源码、Git、命令、聊天或前端存放密钥值。
+初始安全检查为 revision 0、无变量，本机 `DIDA_API_KEY` 存在状态为 false。随后已通过 Sites 原生工具绑定 **DIDA_API_KEY（Secret）**，revision 1，并重新部署应用。密钥不在源码、Git、命令或前端中。
 
-完整真实商品手机验收待安全绑定；在此之前只报告构建、mock/官方夹具验收和部署基础设施结果，不用旧环境联调截图代替线上验证。默认地址通过真实验收后才添加 `ant.devdemo.cc`，DNS类型与目标必须由平台实际返回。
+默认 HTTPS 已发布：`https://rollinggo-ant.pushen987.chatgpt.site`，按平台新建默认策略仅所有者可访问。完整真实商品手机验收正在进行；在此之前只报告构建、mock/官方夹具验收和部署基础设施结果，不用旧环境联调截图代替线上验证。默认地址通过真实验收后才添加 `ant.devdemo.cc`，DNS类型与目标必须由平台实际返回。
 
 ## 同源后端
 
 Sites 使用 Cloudflare Workers，正式入口为 `dist/server/index.js` 的默认 `{fetch(request, env, ctx)}`。`server/worker.mjs` 只从运行时 `env.DIDA_API_KEY` 读取秘密。浏览器请求同一来源 `/api/*`；固定供应商 `https://didatickettest.wysiwysi.com/api/distribution/v1`。
 
-Node 开发/本地生产和 Worker 共用 `server/gateway-core.mjs` 的路由白名单、参数限制、供应商响应大小限制、密钥脱敏及 BigInt 报价校验。Worker 完整比较 POST Origin；不转发浏览器 Authorization；拒绝供应商重定向；保留正常 TLS。
+Node 开发/本地生产和 Worker 共用 `server/gateway-core.mjs` 的路由白名单、参数限制、供应商响应大小限制、密钥脱敏及 BigInt 报价校验。Worker 完整比较 POST Origin；不转发浏览器 Authorization；使用 Workers 支持的 `redirect: manual` 并显式拒绝供应商所有 3xx 重定向；保留正常 TLS。
 
 Worker 的 `/api/orders` 只向供应商 `/orders/validate` 发送请求，返回 `mode: validated` 和本地草稿编号。没有真实订单创建、付款、取消或结算路由，legacy live环境变量不起作用。库存、日历和订单验证不缓存；目录成功响应短缓存。
 
@@ -36,7 +36,7 @@ npm start
 
 `npm start` 的 Node静态根为 `dist/client/`，默认3000；Sites构建入口为 `dist/server/index.js`。不能单独上传前端。
 
-本次 Node契约26/26、Worker契约25/25通过，编译Worker冒烟验证通过。移动端官方夹具验收7/7通过，Figma证据见 `docs/figma/calibration.md`；夹具不在生产前端加载。
+本次 Node契约26/26、Worker契约26/26通过，编译Worker冒烟验证通过。移动端官方夹具验收7/7通过，Figma证据见 `docs/figma/calibration.md`；夹具不在生产前端加载。
 
 原环境真实商品105到DEMO收银台的历史结果保存在 `docs/verification.json`，不作为本次线上验收证据。复杂旅客字段与必填checkbox的供应商契约限制继续保留，见 `server/extra-info-contract.md`。
 
