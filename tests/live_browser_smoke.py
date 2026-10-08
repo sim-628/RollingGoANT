@@ -100,14 +100,22 @@ def main():
         try:
             page.goto(origin, wait_until="domcontentloaded")
             expect(page.locator(".cat-product-card").first).to_be_visible(timeout=30000)
-            expect(page.locator(".cat-city-pill").first).to_be_visible(timeout=30000)
+            expect(page.get_by_role("heading", name="热门推荐", exact=True)).to_be_visible()
+            expect(page.get_by_role("tab", name="酒店", exact=True).locator("svg")).to_have_count(0)
+            expect(page.get_by_role("tab", name="机票", exact=True).locator("svg")).to_have_count(0)
+            expect(page.get_by_text("必填", exact=True)).to_have_count(0)
+            expect(page.locator(".cat-destinations, .cat-result-count, .cat-bottom-nav")).to_have_count(0)
+            expect(page.locator(".cat-category-row button").first).to_be_visible(timeout=30000)
+            for option in page.locator(".cat-category-row button").all_text_contents():
+                assert not re.search(r"[A-Za-z]", option), f"Category is not Chinese: {option}"
+            for location in page.locator(".cat-product-location").all_text_contents():
+                assert not re.search(r"[A-Za-z]", location), f"Location is not Chinese: {location}"
             products = api_data["/api/catalog/products"]["data"]["products"]
             product = next(item for item in products if str(item["product_code"]) == args.product_code)
             title = product["title"]
             report["product_code"] = args.product_code
             report["product_title"] = title
             report["catalog_total"] = api_data["/api/catalog/products"]["data"]["total"]
-            report["city_count"] = len(api_data["/api/catalog/cities"]["data"])
             expect(page.get_by_role("button", name=re.compile(r"收藏"))).to_have_count(0)
             expect(page.get_by_role("button", name=re.compile(r"^出行日期"))).to_have_count(0)
             expect(page.get_by_role("button", name=re.compile(r"^人数"))).to_have_count(0)
@@ -117,11 +125,28 @@ def main():
             assert starting_price and starting_price["status"] == "ready", "No real starting price returned for this product"
             report["catalog_starting_price"] = starting_price
             save(page, "08-home")
-            page.get_by_role("button", name=re.compile(r"^目的地.*必填")).click()
+            page.get_by_role("button", name=re.compile(r"^目的地")).click()
             dialog = page.get_by_role("dialog", name="想去哪里？")
+            expect(dialog.locator(".cat-destination-list button").first).to_be_visible(timeout=30000)
+            cities = api_data["/api/catalog/cities"]["data"]
+            report["city_count"] = len(cities)
             dialog.get_by_role("textbox", name="搜索城市或国家").fill(product["city_name"])
-            dialog.get_by_role("button", name=re.compile(re.escape(product["city_name"]))).first.click()
+            city_query = product["city_name"].lower()
+            visible_cities = [city for city in cities if city_query in f"{city['city_name']} {city.get('country_name', '')}".lower()]
+            selected_index = next(index for index, city in enumerate(visible_cities)
+                                  if str(city["city_code"]) == str(product["city_code"]))
+            city_button = dialog.locator(".cat-destination-list button").nth(selected_index)
+            assert not re.search(r"[A-Za-z]", city_button.inner_text()), "Destination label is not Chinese"
+            city_button.click()
             page.locator(".cat-search-panel").get_by_role("button", name="查询", exact=True).click()
+            expect(page).to_have_url(re.compile(r"/#/activities\?city="))
+            expect(page.get_by_role("heading", name="活动列表", exact=True)).to_be_visible()
+            expect(page.locator(".cat-hero, .cat-bottom-nav")).to_have_count(0)
+            expect(page.get_by_role("heading", name=title, exact=True)).to_be_visible(timeout=30000)
+            list_url = page.url
+            report["list_url"] = list_url
+            page.reload(wait_until="domcontentloaded")
+            expect(page).to_have_url(list_url)
             expect(page.get_by_role("heading", name=title, exact=True)).to_be_visible(timeout=30000)
             page.get_by_role("heading", name=title, exact=True).scroll_into_view_if_needed()
             save(page, "09-catalog")
@@ -129,6 +154,11 @@ def main():
             expect(page.get_by_role("heading", name=title, exact=True)).to_be_visible(timeout=30000)
             expect(page.locator(".detail-calendar-note")).to_contain_text("USD", timeout=30000)
             expect(page.get_by_role("button", name=re.compile(r"收藏"))).to_have_count(0)
+            page.get_by_role("button", name="返回活动列表", exact=True).click()
+            expect(page).to_have_url(list_url)
+            expect(page.get_by_role("heading", name=title, exact=True)).to_be_visible(timeout=30000)
+            page.get_by_role("button", name=f"查看 {title}", exact=True).click()
+            expect(page.locator(".detail-calendar-note")).to_contain_text("USD", timeout=30000)
             save(page, "10-product")
             available = page.locator(".detail-calendar-day:not([disabled])")
             assert available.count() > 0, "No real bookable date returned for this product"

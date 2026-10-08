@@ -12,6 +12,7 @@ from pathlib import Path
 import re
 import sys
 import traceback
+from urllib.parse import parse_qs, urlparse
 
 from playwright.sync_api import expect, sync_playwright
 
@@ -24,13 +25,17 @@ TITLE = EXAMPLES["products"]["data"]["products"][0]["title"]
 
 
 @contextmanager
-def mobile_page(browser, origin, **variants):
+def mobile_page(browser, origin, *, categories=None, cities=None, **variants):
     context = browser.new_context(viewport={"width": 390, "height": 844},
                                   device_scale_factor=1, is_mobile=True,
                                   has_touch=True, locale="zh-CN",
                                   timezone_id="Europe/London")
     router = FixtureRouter(origin, **variants)
     router.install(context)
+    if categories is not None:
+        context.route("**/api/catalog/categories", lambda route: router.fulfill(route, {"success": True, "data": categories}))
+    if cities is not None:
+        context.route("**/api/catalog/cities", lambda route: router.fulfill(route, {"success": True, "data": cities}))
     page = context.new_page()
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
@@ -51,15 +56,18 @@ def screenshot(page, name):
 
 
 def choose_destination(page):
-    page.get_by_role("button", name=re.compile(r"^目的地.*必填")).click()
+    page.get_by_role("button", name=re.compile(r"^目的地")).click()
     dialog = page.get_by_role("dialog", name="想去哪里？")
-    dialog.get_by_role("button", name=re.compile(r"Tokyo.*Japan")).click()
+    dialog.get_by_role("button", name=re.compile(r"东京.*日本")).click()
 
 
 def search_destination(page, router):
     choose_destination(page)
     page.locator(".cat-search-panel").get_by_role("button", name="查询", exact=True).click()
-    expect(page.get_by_role("heading", name=re.compile(r"Tokyo · 活动体验"))).to_be_visible()
+    expect(page).to_have_url(re.compile(r"/#/activities\?city=215(?:&|$)"))
+    expect(page.get_by_role("heading", name="活动列表", exact=True)).to_be_visible()
+    expect(page.get_by_role("heading", name="东京活动", exact=True)).to_be_visible()
+    expect(page.locator(".cat-hero")).to_have_count(0)
     expect(page.get_by_role("heading", name=TITLE, exact=True)).to_be_visible()
     assert router.calls("/api/catalog/products")[-1]["params"]["city_codes"] == ["215"]
 
@@ -75,6 +83,11 @@ def open_detail(page, router):
 def test_required_destination_and_simple_search(browser, origin):
     with mobile_page(browser, origin) as (page, router):
         expect(page.get_by_role("tab", name="活动", exact=True)).to_have_attribute("aria-selected", "true")
+        expect(page.get_by_role("tab", name="酒店", exact=True).locator("svg")).to_have_count(0)
+        expect(page.get_by_role("tab", name="机票", exact=True).locator("svg")).to_have_count(0)
+        expect(page.get_by_role("heading", name="热门推荐", exact=True)).to_be_visible()
+        expect(page.get_by_text("必填", exact=True)).to_have_count(0)
+        expect(page.locator(".cat-destinations, .cat-result-count, .cat-bottom-nav")).to_have_count(0)
         expect(page.get_by_role("button", name=re.compile(r"^出行日期"))).to_have_count(0)
         expect(page.get_by_role("button", name=re.compile(r"^人数"))).to_have_count(0)
         expect(page.get_by_role("button", name=re.compile(r"收藏"))).to_have_count(0)
@@ -84,15 +97,16 @@ def test_required_destination_and_simple_search(browser, origin):
         page.locator(".cat-search-panel").get_by_role("button", name="查询", exact=True).click()
         expect(page.get_by_role("alert")).to_have_text("请先选择一个目的地")
         assert len(router.calls("/api/catalog/products")) == before
-        page.get_by_role("dialog").get_by_role("button", name=re.compile(r"Tokyo.*Japan")).click()
-        # Wait for the new destination response before inspecting its image.
-        # The previous catalogue uses the same fixture title and is replaced
-        # while a smooth scroll is still settling.
+        page.get_by_role("dialog").get_by_role("button", name=re.compile(r"东京.*日本")).click()
+        # Selecting a draft destination does not filter the homepage.
+        assert len(router.calls("/api/catalog/products")) == before
         with page.expect_response(lambda response: "/api/catalog/products?" in response.url
                                   and "city_codes=215" in response.url):
             page.locator(".cat-search-panel").get_by_role("button", name="查询", exact=True).click()
         expect(page.get_by_label("正在加载活动", exact=True)).to_have_count(0)
-        expect(page.get_by_role("heading", name=re.compile(r"Tokyo · 活动体验"))).to_be_visible()
+        expect(page).to_have_url(re.compile(r"/#/activities\?city=215(?:&|$)"))
+        expect(page.get_by_role("heading", name="东京活动", exact=True)).to_be_visible()
+        expect(page.get_by_role("heading", name="热门推荐", exact=True)).to_have_count(0)
         expect(page.get_by_role("heading", name=TITLE, exact=True)).to_be_visible()
         params = router.calls("/api/catalog/products")[-1]["params"]
         assert params["city_codes"] == ["215"]
@@ -103,6 +117,94 @@ def test_required_destination_and_simple_search(browser, origin):
         page.wait_for_function("document.querySelector('.cat-product-card img')?.naturalWidth > 0")
         assert image.evaluate("node => node.naturalWidth > 0"), "API-sourced image did not render"
         screenshot(page, "02-catalog-official-fixture")
+
+
+def test_chinese_labels_and_committed_destination(browser, origin):
+    cities = [*EXAMPLES["cities"]["data"], {"city_code": "216", "city_name": "Kyoto", "country_name": "Japan"}]
+    categories = [{"category_code": "20101", "category_name": "Theme Parks"},
+                  {"category_code": "20102", "category_name": "Cruise"}]
+    with mobile_page(browser, origin, categories=categories, cities=cities) as (page, router):
+        expect(page.locator(".cat-product-location")).to_have_text("东京 · 日本")
+        expect(page.locator(".cat-product-category")).to_have_text("主题乐园")
+        expect(page.get_by_role("button", name="邮轮", exact=True)).to_be_visible()
+        search_destination(page, router)
+        before = len(router.calls("/api/catalog/products"))
+        page.get_by_role("button", name="更换目的地", exact=True).click()
+        dialog = page.get_by_role("dialog", name="想去哪里？")
+        dialog.get_by_role("textbox", name="搜索城市或国家").fill("京都")
+        dialog.get_by_role("button", name=re.compile(r"京都.*日本")).click()
+        expect(page.get_by_role("heading", name="东京活动", exact=True)).to_be_visible()
+        expect(page.locator(".cat-round-button")).to_have_text("京都")
+        assert len(router.calls("/api/catalog/products")) == before
+        page.locator(".cat-keyword-submit").click()
+        expect(page).to_have_url(re.compile(r"/#/activities\?city=216(?:&|$)"))
+        expect(page.get_by_role("heading", name="京都活动", exact=True)).to_be_visible()
+        expect(page.get_by_label("正在加载活动", exact=True)).to_have_count(0)
+        assert router.calls("/api/catalog/products")[-1]["params"]["city_codes"] == ["216"]
+
+
+def test_list_reload_history_and_product_return(browser, origin):
+    with mobile_page(browser, origin) as (page, router):
+        search_destination(page, router)
+        initial_list = page.url
+        before = len(router.calls("/api/catalog/products"))
+        page.get_by_role("textbox", name="搜索目的地内的活动").fill("游船")
+        assert page.url == initial_list
+        assert len(router.calls("/api/catalog/products")) == before
+        page.locator(".cat-keyword-submit").click()
+        expect(page).to_have_url(re.compile(r"/#/activities\?.*&q="))
+        expect(page.get_by_label("正在加载活动", exact=True)).to_have_count(0)
+        committed_list = page.url
+        assert parse_qs(urlparse(committed_list).fragment.split("?", 1)[1])["q"] == ["游船"]
+        page.reload(wait_until="networkidle")
+        expect(page.get_by_role("heading", name="东京活动", exact=True)).to_be_visible()
+        expect(page.get_by_role("textbox", name="搜索目的地内的活动")).to_have_value("游船")
+        assert router.calls("/api/catalog/products")[-1]["params"]["keyword"] == ["游船"]
+        page.get_by_role("button", name=f"查看 {TITLE}", exact=True).click()
+        expect(page.get_by_role("heading", name=TITLE, exact=True)).to_be_visible()
+        page.get_by_role("button", name="返回活动列表", exact=True).click()
+        expect(page).to_have_url(committed_list)
+        expect(page.get_by_role("heading", name="东京活动", exact=True)).to_be_visible()
+        page.go_back(wait_until="networkidle")
+        expect(page).to_have_url(re.compile(r"/#/product/10549$"))
+        page.go_back(wait_until="networkidle")
+        expect(page).to_have_url(committed_list)
+        page.go_back(wait_until="networkidle")
+        expect(page).to_have_url(initial_list)
+        page.go_back(wait_until="networkidle")
+        expect(page.get_by_role("heading", name="热门推荐", exact=True)).to_be_visible()
+        expect(page.locator(".cat-list-header")).to_have_count(0)
+        page.go_forward(wait_until="networkidle")
+        expect(page).to_have_url(initial_list)
+        expect(page.get_by_role("heading", name="东京活动", exact=True)).to_be_visible()
+
+
+def test_empty_results_can_clear_committed_keyword(browser, origin):
+    with mobile_page(browser, origin) as (page, router):
+        search_destination(page, router)
+        def empty_keyword(route):
+            params = parse_qs(urlparse(route.request.url).query)
+            if params.get("keyword") != ["不存在的活动"]:
+                route.fallback()
+                return
+            router.requests.append({"method": "GET", "path": "/api/catalog/products", "params": params, "body": None})
+            router.fulfill(route, {"success": True, "data": {"products": [], "total": 0, "page": 1, "limit": 12, "has_next": False}})
+        page.context.route("**/api/catalog/products?**", empty_keyword)
+        page.get_by_role("textbox", name="搜索目的地内的活动").fill("不存在的活动")
+        page.locator(".cat-keyword-submit").click()
+        expect(page.get_by_role("heading", name="暂时没有找到相关活动", exact=True)).to_be_visible()
+        page.get_by_role("button", name="查看全部体验", exact=True).click()
+        expect(page.get_by_role("heading", name=TITLE, exact=True)).to_be_visible()
+        expect(page.get_by_role("textbox", name="搜索目的地内的活动")).to_have_value("")
+        assert "q" not in parse_qs(urlparse(page.url).fragment.split("?", 1)[1])
+
+
+def test_direct_product_link_returns_home(browser, origin):
+    with mobile_page(browser, origin) as (page, router):
+        page.goto(f"{origin}/#/product/10549", wait_until="networkidle")
+        expect(page.get_by_role("heading", name=TITLE, exact=True)).to_be_visible()
+        page.get_by_role("button", name="返回活动列表", exact=True).click()
+        expect(page.get_by_role("heading", name="热门推荐", exact=True)).to_be_visible()
 
 
 def test_catalog_starting_price_and_detail_without_favorites(browser, origin):
@@ -277,6 +379,10 @@ def test_empty_unit_rules_still_send_each_traveller(browser, origin):
 
 
 TESTS = [test_required_destination_and_simple_search,
+         test_chinese_labels_and_committed_destination,
+         test_list_reload_history_and_product_return,
+         test_empty_results_can_clear_committed_keyword,
+         test_direct_product_link_returns_home,
          test_catalog_starting_price_and_detail_without_favorites,
          test_api_failure_can_recover,
          test_calendar_dynamic_fields_and_order_draft,

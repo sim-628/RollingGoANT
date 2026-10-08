@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Check, Compass, FileCheck2, MapPin, ShieldCheck } from 'lucide-react';
 import Catalog from './Catalog';
 import ProductDetail from './ProductDetail';
 import Booking from './Booking';
 import type { BookingSelection, SearchState } from './types';
 import { formatMoney } from './api';
+import { parseCatalogRoute, productCodeFromPath, resultsPath } from './catalogRoute';
 
 export interface OrderResult {
   mode?: 'validated';
@@ -15,24 +16,54 @@ export interface OrderResult {
   [key: string]: unknown;
 }
 function route() { return window.location.hash.slice(1) || '/'; }
-function go(path: string) { window.location.hash = path; window.scrollTo({ top: 0, behavior: 'instant' }); }
+function go(path: string, catalogReturnTo?: string) {
+  window.location.hash = path;
+  window.history.replaceState(catalogReturnTo ? { catalogReturnTo } : null, '');
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+function productOriginFromHistory() {
+  const returnTo: unknown = window.history.state?.catalogReturnTo;
+  const catalogRoute = parseCatalogRoute(typeof returnTo === 'string' ? returnTo : '/');
+  return { path: catalogRoute.mode === 'results' ? String(returnTo) : '/', search: catalogRoute.search };
+}
+const emptySearch: SearchState = { destination: null, keyword: '' };
 
 export default function App() {
   const [path, setPath] = useState(route);
-  const [search, setSearch] = useState<SearchState>({ destination: null, keyword: '' });
+  const [search, setSearch] = useState<SearchState>(() => parseCatalogRoute(route()).search || emptySearch);
+  const [productOrigin, setProductOrigin] = useState(productOriginFromHistory);
   const [booking, setBooking] = useState<BookingSelection | null>(null);
   const [order, setOrder] = useState<OrderResult | null>(null);
   useEffect(() => {
-    const changed = () => { setPath(route()); window.scrollTo(0, 0); };
+    const changed = () => {
+      const nextPath = route();
+      const nextCatalogRoute = parseCatalogRoute(nextPath);
+      setPath(nextPath);
+      if (nextCatalogRoute.mode === 'results') setSearch(nextCatalogRoute.search);
+      if (productCodeFromPath(nextPath)) setProductOrigin(productOriginFromHistory());
+      window.scrollTo(0, 0);
+    };
     window.addEventListener('hashchange', changed);
     return () => window.removeEventListener('hashchange', changed);
   }, []);
-  const productCode = path.startsWith('/product/') ? decodeURIComponent(path.slice(9)) : '';
+  const catalogRoute = useMemo(() => parseCatalogRoute(path), [path]);
+  const productCode = productCodeFromPath(path);
+  const activeSearch = catalogRoute.mode === 'results' ? catalogRoute.search : emptySearch;
+  const submitSearch = (next: SearchState) => {
+    const nextPath = resultsPath(next);
+    if (!nextPath) return;
+    setSearch(next);
+    go(nextPath);
+  };
+  const openProduct = (code: string) => {
+    const origin = catalogRoute.mode === 'results' ? path : '/';
+    go(`/product/${encodeURIComponent(code)}`, origin);
+  };
   return <div className="site-stage"><div className="mobile-app">
-    {productCode ? <ProductDetail productCode={productCode} search={search} onBack={() => go('/')} onBook={selection => { setBooking(selection); setOrder(null); go('/booking'); }} />
-      : path === '/booking' && booking ? <Booking selection={booking} onBack={() => go(`/product/${encodeURIComponent(booking.product.product_code)}`)} onComplete={result => { setOrder(result); go('/cashier'); }} />
+    {productCode ? <ProductDetail productCode={productCode} search={productOrigin.search || search} onBack={() => go(productOrigin.path)} onBook={selection => { setBooking(selection); setOrder(null); go('/booking', productOrigin.path); }} />
+      : path === '/booking' && booking ? <Booking selection={booking} onBack={() => go(`/product/${encodeURIComponent(booking.product.product_code)}`, productOrigin.path)} onComplete={result => { setOrder(result); go('/cashier'); }} />
       : (path === '/cashier' || path === '/confirmation') && order && booking ? <Confirmation booking={booking} order={order} onHome={() => go('/')} />
-      : <Catalog search={search} onSearchChange={setSearch} onOpenProduct={code => go(`/product/${encodeURIComponent(code)}`)} />}
+      : <Catalog key={path} mode={catalogRoute.mode} search={search} activeSearch={activeSearch} onSearchChange={setSearch} onSearch={submitSearch} onHome={() => go('/')} onOpenProduct={openProduct} />}
     <div className="desktop-signature" aria-hidden="true"><span>RollingGo <b>ANT</b></span><span>让每一天，都值得出发。</span></div>
   </div></div>;
 }

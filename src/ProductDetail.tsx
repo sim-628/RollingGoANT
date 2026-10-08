@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { apiGet, apiPost } from './api';
+import { categoryNameZh, locationLabelZh, placeNameZh } from './localization';
 import type { BookingSelection, PackageData, ProductDetailData, SearchState } from './types';
 import './detail.css';
 
@@ -274,7 +275,9 @@ export default function ProductDetail({ productCode, search, onBack, onBook }: {
   const referenceCurrency = hasCalendarReference ? mainCalendar?.currency : product?.currency;
   const apiLocation = plainText(product?.location);
   const locationIsCoordinates = /^-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?$/.test(apiLocation);
-  const locationLabel = (!locationIsCoordinates && apiLocation) || plainText(product?.address) || plainText(product?.city_info?.[0]?.city_name) || search.destination?.name;
+  const cityName = plainText(product?.city_info?.[0]?.city_name) || search.destination?.name;
+  const countryName = plainText(product?.city_info?.[0]?.country_name) || search.destination?.countryName;
+  const locationLabel = cityName ? locationLabelZh(cityName, countryName) : (!locationIsCoordinates && apiLocation ? placeNameZh(apiLocation) : '');
   const days = Array.from({ length: Number(monthEnd(month).slice(-2)) }, (_, index) => {
     const value = `${month}-${String(index + 1).padStart(2, '0')}`;
     const row = mainCalendar?.calendars?.flatMap(group => group.dates || []).find(item => item.date.slice(0, 10) === value);
@@ -334,7 +337,7 @@ export default function ProductDetail({ productCode, search, onBack, onBook }: {
     <div className="detail-main-grid">
       <div className="detail-overview">
         <section className="detail-heading">
-          <div className="detail-eyebrow">{plainText(product.category_info?.leaf_category_name) || plainText(product.category_info?.sub_category_name) || '探索当地活动'}</div>
+          <div className="detail-eyebrow">{categoryNameZh(plainText(product.category_info?.leaf_category_name) || plainText(product.category_info?.sub_category_name))}</div>
           <h1>{product.title}</h1>
           {product.subtitle && <p className="detail-subtitle">{plainText(product.subtitle)}</p>}
           {locationLabel && <div className="detail-location"><Icon name="pin" size={16} /><span>{locationLabel}</span></div>}
