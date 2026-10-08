@@ -36,7 +36,7 @@ npm start
 
 `npm start` 的 Node静态根为 `dist/client/`，默认3000；Sites构建入口为 `dist/server/index.js`。不能单独上传前端。
 
-本次 Node契约26/26、Worker契约25/25通过，编译Worker冒烟验证通过。移动端官方夹具验收与Figma证据见 `docs/figma/calibration.md`；夹具不在生产前端加载。
+本次 Node契约26/26、Worker契约25/25通过，编译Worker冒烟验证通过。移动端官方夹具验收7/7通过，Figma证据见 `docs/figma/calibration.md`；夹具不在生产前端加载。
 
 原环境真实商品105到DEMO收银台的历史结果保存在 `docs/verification.json`，不作为本次线上验收证据。复杂旅客字段与必填checkbox的供应商契约限制继续保留，见 `server/extra-info-contract.md`。
 

@@ -8,7 +8,7 @@
 
 Sites 项目：`appgprj_6ac76e7113d4819198e9d90830476ccc`。新项目安全环境变量检查为空，本机没有继承 `DIDA_API_KEY`。须由用户在 Sites 安全设置添加同名 Secret，后续部署应用该环境版本后再做真实供应商验收。历史联调记录不代表本项目已绑定或已验收。
 
-原 Node 契约 26 项与 Worker 契约 25 项通过。当前 Figma 依据见 `docs/figma/calibration.md`；当前部署路径见 `deployment/README.md`。
+原 Node 契约 26 项与 Worker 契约 25 项通过，官方夹具手机交互 7/7 通过。当前 Figma 依据见 `docs/figma/calibration.md`；当前部署路径见 `deployment/README.md`。
 
 ## 已实现
 
