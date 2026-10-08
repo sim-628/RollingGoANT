@@ -1,17 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { apiGet } from './api';
-import type { Destination, SearchState } from './types';
-import { placeNameZh, countryNameZh, categoryNameZh, locationLabelZh } from './localization';
+import type { SearchState } from './types';
+import { placeNameZh, categoryNameZh, locationLabelZh } from './localization';
 import './catalog.css';
 
-type City = { city_code: string; city_name: string; country_name?: string; country_code?: string };
 type Category = { category_code: string; category_name: string; sub_categories?: { sub_category_code: string; sub_category_name: string }[] };
 type CatalogProduct = { product_code: string; title: string; subtitle?: string; city_name?: string; country_name?: string; category_name?: string; currency?: string | null; price?: string | number | null; images?: { image_url: string; image_type?: string }[] };
 type ProductPage = { total: number; page: number; limit: number; has_next: boolean; products: CatalogProduct[] };
-type Sheet = 'destination' | null;
 type StartingPrice = { product_code: string; status: 'ready' | 'unavailable' | 'error'; price: string | null; currency: string | null; start_date?: string; end_date?: string };
-type Props = { mode: 'home' | 'results'; onOpenProduct: (code: string) => void; search: SearchState; activeSearch: SearchState; onSearchChange: (next: SearchState) => void; onSearch: (next: SearchState) => void; onHome: () => void };
+type Props = { mode: 'home' | 'results'; onOpenProduct: (code: string) => void; search: SearchState; activeSearch: SearchState; onSearchChange: (next: SearchState) => void; onSearch: (next: SearchState) => void; onHome: () => void; onOpenSearch: () => void };
 
 const iconPaths: Record<string, ReactNode> = {
   pin: <><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></>,
@@ -46,32 +44,7 @@ function ProductImage({ product, className = '' }: { product: CatalogProduct; cl
   return src && !failed ? <img className={className} src={src} alt={product.title} loading="lazy" onError={() => setFailed(true)} /> : <div className={`cat-image-placeholder ${className}`}><CatalogIcon name="image" size={36}/><span>探索精彩活动</span></div>;
 }
 
-function Modal({ title, children, onClose, footer }: { title: string; children: ReactNode; onClose: () => void; footer?: ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const close = useRef(onClose);
-  close.current = onClose;
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    (ref.current?.querySelector<HTMLElement>('input') || ref.current?.querySelector<HTMLElement>('button, [tabindex="0"]'))?.focus();
-    const listener = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') close.current();
-      if (event.key !== 'Tab') return;
-      const items = ref.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), [tabindex="0"]');
-      if (!items?.length) return;
-      const first = items[0], last = items[items.length - 1];
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-    };
-    document.addEventListener('keydown', listener);
-    return () => { document.body.style.overflow = overflow; document.removeEventListener('keydown', listener); previous?.focus(); };
-  }, []);
-  return <div className="cat-modal-backdrop" onClick={onClose}><div className="cat-sheet" role="dialog" aria-modal="true" aria-label={title} ref={ref} onClick={event => event.stopPropagation()}><div className="cat-sheet-handle"/><header className="cat-sheet-header"><h2>{title}</h2><button className="cat-icon-button" onClick={onClose} aria-label="关闭"><CatalogIcon name="close"/></button></header><div className="cat-sheet-body">{children}</div>{footer && <footer className="cat-sheet-footer">{footer}</footer>}</div></div>;
-}
-
-export default function Catalog({ mode, onOpenProduct, search, activeSearch, onSearchChange, onSearch, onHome }: Props) {
-  const [cities, setCities] = useState<City[]>([]);
+export default function Catalog({ mode, onOpenProduct, search, activeSearch, onSearchChange, onSearch, onHome, onOpenSearch }: Props) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [startingPrices, setStartingPrices] = useState<Record<string, StartingPrice>>({});
@@ -79,26 +52,16 @@ export default function Catalog({ mode, onOpenProduct, search, activeSearch, onS
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(false);
-  const [cityLoading, setCityLoading] = useState(true);
-  const [cityError, setCityError] = useState(false);
-  const [sheet, setSheet] = useState<Sheet>(null);
-  const [cityKeyword, setCityKeyword] = useState('');
-  const [country, setCountry] = useState('');
   const submitted = mode === 'results';
-  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState(activeSearch.category?.code || '');
   const [hasNext, setHasNext] = useState(false);
   const [page, setPage] = useState(1);
   const [retry, setRetry] = useState(0);
   const [toast, setToast] = useState('');
-  const [destinationRequired, setDestinationRequired] = useState(false);
   const request = useRef(0);
-  const countryNames = [...new Set(cities.map(city => city.country_name).filter(Boolean))] as string[];
-  const visibleCities = cities.filter(city => (!country || country === city.country_name) && `${city.city_name} ${placeNameZh(city.city_name)} ${city.country_name || ''} ${countryNameZh(city.country_name)}`.toLocaleLowerCase().includes(cityKeyword.toLocaleLowerCase()));
 
   useEffect(() => {
     let alive = true;
-    setCityLoading(true); setCityError(false);
-    apiGet<City[]>('/api/catalog/cities').then(data => { if (alive) setCities(Array.isArray(data) ? data : []); }).catch(() => { if (alive) setCityError(true); }).finally(() => { if (alive) setCityLoading(false); });
     apiGet<Category[]>('/api/catalog/categories').then(data => { if (alive) setCategories(Array.isArray(data) ? data : []); }).catch(() => {});
     return () => { alive = false; };
   }, [retry]);
@@ -162,18 +125,18 @@ export default function Catalog({ mode, onOpenProduct, search, activeSearch, onS
     finally { setLoadingMore(false); }
   }
 
-  function selectCity(city: City) {
-    const destination: Destination = { code: String(city.city_code), name: city.city_name, countryName: city.country_name };
-    const next = { ...search, destination };
-    onSearchChange(next);
-    setDestinationRequired(false); setSheet(null);
+  function chooseCategory(code: string, name = '') {
+    if (!submitted) { setSelectedCategory(code); return; }
+    const next = { ...activeSearch, category: code ? { code, name } : undefined };
+    if (!next.destination && !next.keyword && !next.category) onHome();
+    else onSearch(next);
   }
-  function runSearch() {
-    if (!search.destination) { setDestinationRequired(true); setSheet('destination'); return; }
-    setSheet(null);
-    onSearch({ ...search });
-  }
-  function openSheet(next: Sheet) { setSheet(next); }
+
+  const searchLabel = search.keyword || (search.destination ? placeNameZh(search.destination.name) : '想要搜什么');
+  const resultTitle = activeSearch.destination
+    ? `${placeNameZh(activeSearch.destination.name)}${activeSearch.category ? ` · ${categoryNameZh(activeSearch.category.name)}` : '活动'}`
+    : activeSearch.keyword ? `“${activeSearch.keyword}”的搜索结果`
+    : activeSearch.category ? categoryNameZh(activeSearch.category.name) : '活动列表';
 
   return <div className="catalog">
     {submitted ? <header className="cat-list-header">
@@ -185,16 +148,16 @@ export default function Catalog({ mode, onOpenProduct, search, activeSearch, onS
     <main className={`cat-main ${submitted ? 'cat-list-main' : ''}`}>
       {!submitted && <section className="cat-hero">
         <div className="cat-search-panel">
-          <div className="cat-service-tabs" role="tablist" aria-label="旅行服务"><button role="tab" aria-selected={false} onClick={() => setToast('酒店预订请前往 RollingGo 主站')}>酒店</button><button role="tab" aria-selected={false} onClick={() => setToast('机票预订请前往 RollingGo 主站')}>机票</button><button role="tab" aria-selected={true} className="active"><CatalogIcon name="ticket"/>活动</button></div>
-          <div className="cat-search-fields"><button className={`cat-search-field cat-destination-field ${destinationRequired ? 'cat-field-invalid' : ''}`} onClick={() => openSheet('destination')}><CatalogIcon name="pin"/><span><small>目的地</small><strong className={!search.destination ? 'is-placeholder' : ''}>{search.destination ? placeNameZh(search.destination.name) : '你想去哪里？'}</strong></span><CatalogIcon name="chevron" size={17}/></button><button className="cat-primary-button cat-search-button" onClick={runSearch}>查询</button></div>
+          <div className="cat-service-tabs" role="tablist" aria-label="旅行服务"><button role="tab" aria-selected={false} onClick={() => setToast('酒店预订请前往 RollingGo 主站')}>酒店</button><button role="tab" aria-selected={false} onClick={() => setToast('机票预订请前往 RollingGo 主站')}>机票</button><button role="tab" aria-selected={true} className="active">活动</button></div>
+          <div className="cat-search-fields"><button className="cat-search-field cat-destination-field" aria-label="搜索目的地或活动" onClick={onOpenSearch}><CatalogIcon name="search"/><span><small>目的地或活动</small><strong className={!search.destination && !search.keyword ? 'is-placeholder' : ''}>{searchLabel}</strong></span><CatalogIcon name="chevron" size={17}/></button><button className="cat-primary-button cat-search-button" onClick={onOpenSearch}>查询</button></div>
         </div>
       </section>}
 
       <section className="cat-results-section" id="cat-results">
-        <div className="cat-section-title"><h2>{submitted ? `${placeNameZh(activeSearch.destination?.name)}活动` : '热门推荐'}</h2>{submitted && <button className="cat-round-button" onClick={() => openSheet('destination')}><CatalogIcon name="filter" size={16}/><span>{search.destination?.code !== activeSearch.destination?.code ? placeNameZh(search.destination?.name) : '更换目的地'}</span></button>}</div>
-        {submitted && <label className="cat-keyword-search"><CatalogIcon name="search" size={18}/><input aria-label="搜索目的地内的活动" placeholder={`搜索${placeNameZh(activeSearch.destination?.name)}的活动、景点…`} value={search.keyword} onChange={event => onSearchChange({ ...search, keyword: event.target.value })} onKeyDown={event => { if (event.key === 'Enter') runSearch(); }}/>{search.keyword && <button onClick={() => { const next = { ...search, keyword: '' }; onSearchChange(next); onSearch(next); }} aria-label="清除关键词"><CatalogIcon name="close" size={16}/></button>}<button className="cat-keyword-submit" onClick={runSearch}>查询</button></label>}
-        {categories.length > 0 && <div className="cat-category-row" aria-label="活动类别"><button className={!selectedCategory ? 'selected' : ''} onClick={() => setSelectedCategory('')}>全部体验</button>{categories.map(category => <button key={category.category_code} className={selectedCategory === category.category_code ? 'selected' : ''} onClick={() => setSelectedCategory(category.category_code)}>{categoryNameZh(category.category_name)}</button>)}</div>}
-        {loading ? <div className="cat-product-grid" aria-label="正在加载活动">{Array.from({ length: 6 }, (_, index) => <div className="cat-skeleton-card" key={index}><div className="cat-skeleton-photo"/><div className="cat-skeleton-line"/><div className="cat-skeleton-line short"/><div className="cat-skeleton-line price"/></div>)}</div> : error ? <div className="cat-empty-state"><div className="cat-empty-icon"><CatalogIcon name="globe" size={32}/></div><h3>精彩体验正在路上</h3><p>暂时无法加载活动，请稍后重试。</p><button className="cat-secondary-button" onClick={() => setRetry(value => value + 1)}>重新加载</button></div> : products.length === 0 ? <div className="cat-empty-state"><div className="cat-empty-icon"><CatalogIcon name="search" size={32}/></div><h3>暂时没有找到相关活动</h3><p>试试其他目的地或活动类别，探索更多精彩。</p><button className="cat-secondary-button" onClick={() => { setSelectedCategory(''); onSearchChange({ ...search, keyword: '' }); if (submitted) onSearch({ ...activeSearch, keyword: '' }); }}>查看全部体验</button></div> : <div className="cat-product-grid">{products.map(product => <article className="cat-product-card" key={product.product_code}><div className="cat-product-photo"><button className="cat-photo-link" onClick={() => onOpenProduct(product.product_code)} aria-label={`查看 ${product.title}`}><ProductImage product={product}/></button>{product.category_name && <span className="cat-product-category">{categoryNameZh(product.category_name)}</span>}</div><button className="cat-product-info" onClick={() => onOpenProduct(product.product_code)}>{(product.city_name || product.country_name) && <span className="cat-product-location"><CatalogIcon name="pin" size={13}/>{locationLabelZh(product.city_name, product.country_name)}</span>}<h3>{product.title}</h3>{product.subtitle && <p className="cat-product-subtitle">{product.subtitle}</p>}<div className="cat-product-bottom"><div><ProductStartingPrice price={startingPrices[product.product_code]}/></div><span className="cat-product-arrow"><CatalogIcon name="arrow" size={19}/></span></div></button></article>)}</div>}
+        <div className="cat-section-title"><h2>{submitted ? resultTitle : '热门推荐'}</h2></div>
+        {submitted && <button className="cat-list-search" aria-label="修改搜索" onClick={onOpenSearch}><CatalogIcon name="search" size={18}/><span>{activeSearch.keyword || (activeSearch.destination ? placeNameZh(activeSearch.destination.name) : '搜索目的地或活动')}</span><span className="cat-list-search-edit">修改搜索</span></button>}
+        {categories.length > 0 && <div className="cat-category-row" aria-label="活动类别"><button className={!selectedCategory ? 'selected' : ''} onClick={() => chooseCategory('')}>全部体验</button>{categories.map(category => <button key={category.category_code} className={selectedCategory === category.category_code ? 'selected' : ''} onClick={() => chooseCategory(category.category_code, category.category_name)}>{categoryNameZh(category.category_name)}</button>)}</div>}
+        {loading ? <div className="cat-product-grid" aria-label="正在加载活动">{Array.from({ length: 6 }, (_, index) => <div className="cat-skeleton-card" key={index}><div className="cat-skeleton-photo"/><div className="cat-skeleton-line"/><div className="cat-skeleton-line short"/><div className="cat-skeleton-line price"/></div>)}</div> : error ? <div className="cat-empty-state"><div className="cat-empty-icon"><CatalogIcon name="globe" size={32}/></div><h3>精彩体验正在路上</h3><p>暂时无法加载活动，请稍后重试。</p><button className="cat-secondary-button" onClick={() => setRetry(value => value + 1)}>重新加载</button></div> : products.length === 0 ? <div className="cat-empty-state"><div className="cat-empty-icon"><CatalogIcon name="search" size={32}/></div><h3>暂时没有找到相关活动</h3><p>试试其他目的地或活动类别，探索更多精彩。</p><button className="cat-secondary-button" onClick={() => { setSelectedCategory(''); const next = { ...activeSearch, keyword: '', category: undefined }; onSearchChange(next); if (submitted) { if (next.destination) onSearch(next); else onHome(); } }}>查看全部体验</button></div> : <div className="cat-product-grid">{products.map(product => <article className="cat-product-card" key={product.product_code}><div className="cat-product-photo"><button className="cat-photo-link" onClick={() => onOpenProduct(product.product_code)} aria-label={`查看 ${product.title}`}><ProductImage product={product}/></button>{product.category_name && <span className="cat-product-category">{categoryNameZh(product.category_name)}</span>}</div><button className="cat-product-info" onClick={() => onOpenProduct(product.product_code)}>{(product.city_name || product.country_name) && <span className="cat-product-location"><CatalogIcon name="pin" size={13}/>{locationLabelZh(product.city_name, product.country_name)}</span>}<h3>{product.title}</h3>{product.subtitle && <p className="cat-product-subtitle">{product.subtitle}</p>}<div className="cat-product-bottom"><div><ProductStartingPrice price={startingPrices[product.product_code]}/></div><span className="cat-product-arrow"><CatalogIcon name="arrow" size={19}/></span></div></button></article>)}</div>}
         {!loading && Object.values(startingPrices).some(price => price.status === 'error') && <button className="cat-text-button cat-price-retry" onClick={() => setPriceRetry(value => value + 1)}>重新加载报价</button>}
         {!loading && !error && hasNext && <div className="cat-load-more"><button className="cat-secondary-button" onClick={loadMore} disabled={loadingMore}>{loadingMore ? '加载中…' : '探索更多活动'}{!loadingMore && <CatalogIcon name="arrow" size={17}/>}</button></div>}
       </section>
@@ -204,7 +167,6 @@ export default function Catalog({ mode, onOpenProduct, search, activeSearch, onS
 
 
 
-    {sheet === 'destination' && <Modal title="想去哪里？" onClose={() => setSheet(null)}><p className="cat-sheet-intro">选择目的地，发现当地的精彩活动。</p>{destinationRequired && <p className="cat-validation-message" role="alert">请先选择一个目的地</p>}<label className="cat-destination-search"><CatalogIcon name="search"/><input autoComplete="off" value={cityKeyword} onChange={event => setCityKeyword(event.target.value)} placeholder="搜索城市或国家" aria-label="搜索城市或国家"/></label>{countryNames.length > 1 && <div className="cat-country-row"><button className={!country ? 'active' : ''} onClick={() => setCountry('')}>全部</button>{countryNames.map(name => <button key={name} className={name === country ? 'active' : ''} onClick={() => setCountry(name)}>{countryNameZh(name)}</button>)}</div>}{cityLoading ? <div className="cat-sheet-status">正在加载目的地…</div> : cityError ? <div className="cat-sheet-status"><p>暂时无法加载目的地</p><button className="cat-secondary-button" onClick={() => setRetry(value => value + 1)}>重试</button></div> : visibleCities.length === 0 ? <div className="cat-sheet-status">没有找到这个目的地，试试其他城市。</div> : <div className="cat-destination-list">{visibleCities.map(city => <button key={city.city_code} className={search.destination?.code === String(city.city_code) ? 'selected' : ''} onClick={() => selectCity(city)}><span className="cat-destination-icon"><CatalogIcon name="pin"/></span><span><strong>{placeNameZh(city.city_name)}</strong><small>{countryNameZh(city.country_name)}</small></span>{search.destination?.code === String(city.city_code) ? <CatalogIcon name="check" size={19}/> : <CatalogIcon name="chevron" size={16}/>}</button>)}</div>}</Modal>}
     {toast && <div className="cat-toast" role="status">{toast}</div>}
   </div>;
 }

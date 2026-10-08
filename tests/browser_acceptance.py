@@ -55,15 +55,22 @@ def screenshot(page, name):
     page.screenshot(path=str(ARTIFACTS / f"{name}.viewport.png"), full_page=False)
 
 
+def search_box(page):
+    return page.get_by_role("textbox", name="搜索目的地或活动", exact=True)
+
+
 def choose_destination(page):
-    page.get_by_role("button", name=re.compile(r"^目的地")).click()
-    dialog = page.get_by_role("dialog", name="想去哪里？")
-    dialog.get_by_role("button", name=re.compile(r"东京.*日本")).click()
+    page.get_by_role("button", name="搜索目的地或活动", exact=True).click()
+    expect(page).to_have_url(re.compile(r"/#/search(?:\?|$)"))
+    search_box(page).fill("东京")
+    city = page.locator('.ant-search-city[data-city-code="215"]')
+    expect(city).to_contain_text("东京")
+    expect(city).to_contain_text("日本")
+    city.click()
 
 
 def search_destination(page, router):
     choose_destination(page)
-    page.locator(".cat-search-panel").get_by_role("button", name="查询", exact=True).click()
     expect(page).to_have_url(re.compile(r"/#/activities\?city=215(?:&|$)"))
     expect(page.get_by_role("heading", name="活动列表", exact=True)).to_be_visible()
     expect(page.get_by_role("heading", name="东京活动", exact=True)).to_be_visible()
@@ -80,11 +87,12 @@ def open_detail(page, router):
     assert router.calendar_days, "The detail screen did not request an API calendar"
 
 
-def test_required_destination_and_simple_search(browser, origin):
+def test_search_page_and_simple_destination_search(browser, origin):
     with mobile_page(browser, origin) as (page, router):
         expect(page.get_by_role("tab", name="活动", exact=True)).to_have_attribute("aria-selected", "true")
         expect(page.get_by_role("tab", name="酒店", exact=True).locator("svg")).to_have_count(0)
         expect(page.get_by_role("tab", name="机票", exact=True).locator("svg")).to_have_count(0)
+        expect(page.get_by_role("tab", name="活动", exact=True).locator("svg")).to_have_count(0)
         expect(page.get_by_role("heading", name="热门推荐", exact=True)).to_be_visible()
         expect(page.get_by_text("必填", exact=True)).to_have_count(0)
         expect(page.locator(".cat-destinations, .cat-result-count, .cat-bottom-nav")).to_have_count(0)
@@ -93,16 +101,16 @@ def test_required_destination_and_simple_search(browser, origin):
         expect(page.get_by_role("button", name=re.compile(r"收藏"))).to_have_count(0)
         expect(page.get_by_text("选择目的地即可出发，日期和人数稍后再定。", exact=True)).to_have_count(0)
         screenshot(page, "01-home-official-fixture")
-        before = len(router.calls("/api/catalog/products"))
         page.locator(".cat-search-panel").get_by_role("button", name="查询", exact=True).click()
-        expect(page.get_by_role("alert")).to_have_text("请先选择一个目的地")
-        assert len(router.calls("/api/catalog/products")) == before
-        page.get_by_role("dialog").get_by_role("button", name=re.compile(r"东京.*日本")).click()
-        # Selecting a draft destination does not filter the homepage.
-        assert len(router.calls("/api/catalog/products")) == before
+        expect(page).to_have_url(re.compile(r"/#/search(?:\?|$)"))
+        expect(page.locator(".cat-hero, .cat-product-card")).to_have_count(0)
+        search_url = page.url
+        page.reload(wait_until="networkidle")
+        expect(page).to_have_url(search_url)
+        search_box(page).fill("东京")
         with page.expect_response(lambda response: "/api/catalog/products?" in response.url
                                   and "city_codes=215" in response.url):
-            page.locator(".cat-search-panel").get_by_role("button", name="查询", exact=True).click()
+            page.locator('.ant-search-city[data-city-code="215"]').click()
         expect(page.get_by_label("正在加载活动", exact=True)).to_have_count(0)
         expect(page).to_have_url(re.compile(r"/#/activities\?city=215(?:&|$)"))
         expect(page.get_by_role("heading", name="东京活动", exact=True)).to_be_visible()
@@ -128,55 +136,123 @@ def test_chinese_labels_and_committed_destination(browser, origin):
         expect(page.locator(".cat-product-category")).to_have_text("主题乐园")
         expect(page.get_by_role("button", name="邮轮", exact=True)).to_be_visible()
         search_destination(page, router)
-        before = len(router.calls("/api/catalog/products"))
-        page.get_by_role("button", name="更换目的地", exact=True).click()
-        dialog = page.get_by_role("dialog", name="想去哪里？")
-        dialog.get_by_role("textbox", name="搜索城市或国家").fill("京都")
-        dialog.get_by_role("button", name=re.compile(r"京都.*日本")).click()
-        expect(page.get_by_role("heading", name="东京活动", exact=True)).to_be_visible()
-        expect(page.locator(".cat-round-button")).to_have_text("京都")
-        assert len(router.calls("/api/catalog/products")) == before
-        page.locator(".cat-keyword-submit").click()
+        page.get_by_role("button", name="修改搜索", exact=True).click()
+        expect(page).to_have_url(re.compile(r"/#/search(?:\?|$)"))
+        search_box(page).fill("京都")
+        city = page.locator('.ant-search-city[data-city-code="216"]')
+        expect(city).to_contain_text("京都")
+        expect(city).to_contain_text("日本")
+        city.click()
         expect(page).to_have_url(re.compile(r"/#/activities\?city=216(?:&|$)"))
         expect(page.get_by_role("heading", name="京都活动", exact=True)).to_be_visible()
         expect(page.get_by_label("正在加载活动", exact=True)).to_have_count(0)
         assert router.calls("/api/catalog/products")[-1]["params"]["city_codes"] == ["216"]
+        page.get_by_role("button", name="主题乐园", exact=True).click()
+        expect(page).to_have_url(re.compile(r"/#/activities\?.*&category=20101(?:&|$)"))
+        expect(page.get_by_role("heading", name="京都 · 主题乐园", exact=True)).to_be_visible()
+        expect(page.get_by_label("正在加载活动", exact=True)).to_have_count(0)
+        assert router.calls("/api/catalog/products")[-1]["params"]["category_codes"] == ["20101"]
+        category_list = page.url
+        page.get_by_role("button", name=f"查看 {TITLE}", exact=True).click()
+        page.get_by_role("button", name="返回活动列表", exact=True).click()
+        expect(page).to_have_url(category_list)
+        expect(page.get_by_role("button", name="主题乐园", exact=True)).to_have_class(re.compile(r"selected"))
+        page.get_by_role("button", name="全部体验", exact=True).click()
+        expect(page.get_by_role("heading", name="京都活动", exact=True)).to_be_visible()
+        expect(page.get_by_label("正在加载活动", exact=True)).to_have_count(0)
+        assert "category" not in parse_qs(urlparse(page.url).fragment.split("?", 1)[1])
 
 
 def test_list_reload_history_and_product_return(browser, origin):
     with mobile_page(browser, origin) as (page, router):
         search_destination(page, router)
         initial_list = page.url
-        before = len(router.calls("/api/catalog/products"))
-        page.get_by_role("textbox", name="搜索目的地内的活动").fill("游船")
-        assert page.url == initial_list
-        assert len(router.calls("/api/catalog/products")) == before
-        page.locator(".cat-keyword-submit").click()
-        expect(page).to_have_url(re.compile(r"/#/activities\?.*&q="))
+        page.get_by_role("button", name="修改搜索", exact=True).click()
+        expect(page).to_have_url(re.compile(r"/#/search(?:\?|$)"))
+        modify_search = page.url
+        search_box(page).fill("游船")
+        assert page.url == modify_search
+        search_box(page).press("Enter")
+        expect(page).to_have_url(re.compile(r"/#/activities\?q="))
         expect(page.get_by_label("正在加载活动", exact=True)).to_have_count(0)
         committed_list = page.url
         assert parse_qs(urlparse(committed_list).fragment.split("?", 1)[1])["q"] == ["游船"]
         page.reload(wait_until="networkidle")
-        expect(page.get_by_role("heading", name="东京活动", exact=True)).to_be_visible()
-        expect(page.get_by_role("textbox", name="搜索目的地内的活动")).to_have_value("游船")
+        expect(page.get_by_role("heading", name="“游船”的搜索结果", exact=True)).to_be_visible()
+        expect(page.get_by_role("button", name="修改搜索", exact=True)).to_contain_text("游船")
         assert router.calls("/api/catalog/products")[-1]["params"]["keyword"] == ["游船"]
         page.get_by_role("button", name=f"查看 {TITLE}", exact=True).click()
         expect(page.get_by_role("heading", name=TITLE, exact=True)).to_be_visible()
         page.get_by_role("button", name="返回活动列表", exact=True).click()
         expect(page).to_have_url(committed_list)
-        expect(page.get_by_role("heading", name="东京活动", exact=True)).to_be_visible()
+        expect(page.get_by_role("heading", name="“游船”的搜索结果", exact=True)).to_be_visible()
         page.go_back(wait_until="networkidle")
         expect(page).to_have_url(re.compile(r"/#/product/10549$"))
         page.go_back(wait_until="networkidle")
         expect(page).to_have_url(committed_list)
         page.go_back(wait_until="networkidle")
+        expect(page).to_have_url(modify_search)
+        page.go_back(wait_until="networkidle")
         expect(page).to_have_url(initial_list)
+        page.go_back(wait_until="networkidle")
+        expect(page).to_have_url(re.compile(r"/#/search(?:\?|$)"))
         page.go_back(wait_until="networkidle")
         expect(page.get_by_role("heading", name="热门推荐", exact=True)).to_be_visible()
         expect(page.locator(".cat-list-header")).to_have_count(0)
         page.go_forward(wait_until="networkidle")
+        expect(page).to_have_url(re.compile(r"/#/search(?:\?|$)"))
+        page.go_forward(wait_until="networkidle")
         expect(page).to_have_url(initial_list)
         expect(page.get_by_role("heading", name="东京活动", exact=True)).to_be_visible()
+
+
+def test_search_reload_and_close_returns_originating_list(browser, origin):
+    with mobile_page(browser, origin, categories=[{"category_code": "20101", "category_name": "Theme Parks"}]) as (page, router):
+        search_destination(page, router)
+        page.get_by_role("button", name="主题乐园", exact=True).click()
+        expect(page).to_have_url(re.compile(r"/#/activities\?.*&category=20101(?:&|$)"))
+        original_list = page.url
+        page.get_by_role("button", name="修改搜索", exact=True).click()
+        expect(page).to_have_url(re.compile(r"/#/search(?:\?|$)"))
+        search_url = page.url
+        page.reload(wait_until="networkidle")
+        expect(page).to_have_url(search_url)
+        page.get_by_role("button", name="关闭搜索", exact=True).click()
+        expect(page).to_have_url(original_list)
+        expect(page.get_by_role("button", name="主题乐园", exact=True)).to_have_class(re.compile(r"selected"))
+
+
+def test_search_keyword_can_search_all_activities(browser, origin):
+    with mobile_page(browser, origin) as (page, router):
+        page.get_by_role("button", name="搜索目的地或活动", exact=True).click()
+        expect(page).to_have_url(re.compile(r"/#/search(?:\?|$)"))
+        search_box(page).fill("游船")
+        search_box(page).press("Enter")
+        expect(page).to_have_url(re.compile(r"/#/activities\?q="))
+        expect(page.get_by_role("heading", name="“游船”的搜索结果", exact=True)).to_be_visible()
+        expect(page.get_by_role("heading", name=TITLE, exact=True)).to_be_visible()
+        params = router.calls("/api/catalog/products")[-1]["params"]
+        assert params["keyword"] == ["游船"]
+        assert "city_codes" not in params
+
+
+def test_search_category_suggestion_submits_immediately(browser, origin):
+    categories = [{"category_code": "20101", "category_name": "Theme Parks"}]
+    with mobile_page(browser, origin, categories=categories) as (page, router):
+        page.get_by_role("button", name="搜索目的地或活动", exact=True).click()
+        search_box(page).fill("东京")
+        group = page.locator(".ant-search-city-group").filter(has=page.locator('.ant-search-city[data-city-code="215"]'))
+        category = group.locator('.ant-search-category[data-category-code="20101"]')
+        expect(category).to_contain_text("东京")
+        expect(category).to_contain_text("主题乐园")
+        expect(category).to_contain_text("1个活动")
+        category.click()
+        expect(page).to_have_url(re.compile(r"/#/activities\?city=215.*&category=20101(?:&|$)"))
+        expect(page.get_by_role("heading", name="东京 · 主题乐园", exact=True)).to_be_visible()
+        expect(page.get_by_role("heading", name=TITLE, exact=True)).to_be_visible()
+        params = router.calls("/api/catalog/products")[-1]["params"]
+        assert params["city_codes"] == ["215"]
+        assert params["category_codes"] == ["20101"]
 
 
 def test_empty_results_can_clear_committed_keyword(browser, origin):
@@ -190,13 +266,15 @@ def test_empty_results_can_clear_committed_keyword(browser, origin):
             router.requests.append({"method": "GET", "path": "/api/catalog/products", "params": params, "body": None})
             router.fulfill(route, {"success": True, "data": {"products": [], "total": 0, "page": 1, "limit": 12, "has_next": False}})
         page.context.route("**/api/catalog/products?**", empty_keyword)
-        page.get_by_role("textbox", name="搜索目的地内的活动").fill("不存在的活动")
-        page.locator(".cat-keyword-submit").click()
+        page.get_by_role("button", name="修改搜索", exact=True).click()
+        search_box(page).fill("不存在的活动")
+        search_box(page).press("Enter")
         expect(page.get_by_role("heading", name="暂时没有找到相关活动", exact=True)).to_be_visible()
         page.get_by_role("button", name="查看全部体验", exact=True).click()
         expect(page.get_by_role("heading", name=TITLE, exact=True)).to_be_visible()
-        expect(page.get_by_role("textbox", name="搜索目的地内的活动")).to_have_value("")
-        assert "q" not in parse_qs(urlparse(page.url).fragment.split("?", 1)[1])
+        expect(page.get_by_role("heading", name="热门推荐", exact=True)).to_be_visible()
+        expect(page.locator(".cat-list-header")).to_have_count(0)
+        assert urlparse(page.url).fragment in {"", "/"}
 
 
 def test_direct_product_link_returns_home(browser, origin):
@@ -378,9 +456,12 @@ def test_empty_unit_rules_still_send_each_traveller(browser, origin):
         assert_order_payload(router, expected_count=2, with_traveller_fields=False)
 
 
-TESTS = [test_required_destination_and_simple_search,
+TESTS = [test_search_page_and_simple_destination_search,
          test_chinese_labels_and_committed_destination,
          test_list_reload_history_and_product_return,
+         test_search_reload_and_close_returns_originating_list,
+         test_search_keyword_can_search_all_activities,
+         test_search_category_suggestion_submits_immediately,
          test_empty_results_can_clear_committed_keyword,
          test_direct_product_link_returns_home,
          test_catalog_starting_price_and_detail_without_favorites,

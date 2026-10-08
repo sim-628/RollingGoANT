@@ -88,3 +88,6 @@
 .cat-list-main .cat-section-title h2{min-width:0;overflow-wrap:anywhere}
 .cat-list-main .cat-round-button{flex-shrink:0;max-width:45%}
 .cat-toast{bottom:24px}
+.cat-list-search{display:flex;align-items:center;gap:9px;width:100%;min-height:44px;border:1px solid #ececee;border-radius:24px;background:#f5f5f5;color:#62626b;padding:10px 14px;margin-bottom:16px;text-align:left;font-size:14px}
+.cat-list-search>span:first-of-type{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cat-list-search .cat-list-search-edit{flex:none;font-size:12px;color:#000947}

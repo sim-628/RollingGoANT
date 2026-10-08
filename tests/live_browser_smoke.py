@@ -103,6 +103,7 @@ def main():
             expect(page.get_by_role("heading", name="热门推荐", exact=True)).to_be_visible()
             expect(page.get_by_role("tab", name="酒店", exact=True).locator("svg")).to_have_count(0)
             expect(page.get_by_role("tab", name="机票", exact=True).locator("svg")).to_have_count(0)
+            expect(page.get_by_role("tab", name="活动", exact=True).locator("svg")).to_have_count(0)
             expect(page.get_by_text("必填", exact=True)).to_have_count(0)
             expect(page.locator(".cat-destinations, .cat-result-count, .cat-bottom-nav")).to_have_count(0)
             expect(page.locator(".cat-category-row button").first).to_be_visible(timeout=30000)
@@ -125,20 +126,15 @@ def main():
             assert starting_price and starting_price["status"] == "ready", "No real starting price returned for this product"
             report["catalog_starting_price"] = starting_price
             save(page, "08-home")
-            page.get_by_role("button", name=re.compile(r"^目的地")).click()
-            dialog = page.get_by_role("dialog", name="想去哪里？")
-            expect(dialog.locator(".cat-destination-list button").first).to_be_visible(timeout=30000)
+            page.get_by_role("button", name="搜索目的地或活动", exact=True).click()
+            expect(page).to_have_url(re.compile(r"/#/search(?:\?|$)"))
+            page.get_by_role("textbox", name="搜索目的地或活动", exact=True).fill(product["city_name"])
+            city_button = page.locator(f'.ant-search-city[data-city-code="{product["city_code"]}"]')
+            expect(city_button).to_be_visible(timeout=30000)
             cities = api_data["/api/catalog/cities"]["data"]
             report["city_count"] = len(cities)
-            dialog.get_by_role("textbox", name="搜索城市或国家").fill(product["city_name"])
-            city_query = product["city_name"].lower()
-            visible_cities = [city for city in cities if city_query in f"{city['city_name']} {city.get('country_name', '')}".lower()]
-            selected_index = next(index for index, city in enumerate(visible_cities)
-                                  if str(city["city_code"]) == str(product["city_code"]))
-            city_button = dialog.locator(".cat-destination-list button").nth(selected_index)
             assert not re.search(r"[A-Za-z]", city_button.inner_text()), "Destination label is not Chinese"
             city_button.click()
-            page.locator(".cat-search-panel").get_by_role("button", name="查询", exact=True).click()
             expect(page).to_have_url(re.compile(r"/#/activities\?city="))
             expect(page.get_by_role("heading", name="活动列表", exact=True)).to_be_visible()
             expect(page.locator(".cat-hero, .cat-bottom-nav")).to_have_count(0)
@@ -146,6 +142,14 @@ def main():
             list_url = page.url
             report["list_url"] = list_url
             page.reload(wait_until="domcontentloaded")
+            expect(page).to_have_url(list_url)
+            expect(page.get_by_role("heading", name=title, exact=True)).to_be_visible(timeout=30000)
+            page.get_by_role("button", name="修改搜索", exact=True).click()
+            expect(page).to_have_url(re.compile(r"/#/search(?:\?|$)"))
+            search_url = page.url
+            page.reload(wait_until="domcontentloaded")
+            expect(page).to_have_url(search_url)
+            page.get_by_role("button", name="关闭搜索", exact=True).click()
             expect(page).to_have_url(list_url)
             expect(page.get_by_role("heading", name=title, exact=True)).to_be_visible(timeout=30000)
             page.get_by_role("heading", name=title, exact=True).scroll_into_view_if_needed()

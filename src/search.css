@@ -1,0 +1,46 @@
+.ant-search-page{min-height:100svh;background:#fff;color:#262626;font-family:inherit;--search-navy:#000947}
+.ant-search-page :where(button,input){font:inherit}
+.ant-search-page button{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.ant-search-page button:focus-visible,.ant-search-page input:focus-visible{outline:3px solid #818abc;outline-offset:3px}
+.ant-search-brand{height:70px;display:flex;justify-content:space-between;align-items:center;padding:0 20px;border-bottom:1px solid #e8e8e8;color:var(--search-navy)}
+.ant-search-brand>span:first-child{font-size:24px;font-weight:700;letter-spacing:-.5px;line-height:1}
+.ant-search-brand small{display:block;font-size:10px;font-weight:400;line-height:16px;letter-spacing:0;margin-top:4px;color:#6c6c77}
+.ant-search-brand-label{font-size:13px;color:#777}
+.ant-search-bar-row{display:flex;align-items:center;gap:10px;padding:16px 20px 10px 12px}
+.ant-search-close{flex:none;width:36px;height:40px;border:0;background:none;display:flex;align-items:center;justify-content:center;padding:0;color:#262626}
+.ant-search-form{flex:1;display:flex;align-items:center;gap:8px;min-width:0;height:44px;padding:0 12px 0 15px;border:1px solid var(--search-navy);border-radius:24px}
+.ant-search-form input{flex:1;min-width:0;width:100%;border:0;background:none;padding:8px 0;font-size:16px;color:#262626;outline:none}
+.ant-search-form input::placeholder{color:#929292}
+.ant-search-form input:focus-visible{outline:none}
+.ant-search-form:focus-within{box-shadow:0 0 0 1px var(--search-navy)}
+.ant-search-clear{display:flex;align-items:center;justify-content:center;border:0;background:#aaa;color:white;border-radius:50%;width:18px;height:18px;padding:0;flex:none}
+.ant-search-submit{width:28px;height:34px;display:flex;align-items:center;justify-content:center;background:none;border:0;color:var(--search-navy);padding:0;flex:none}
+.ant-search-submit:disabled{color:#a4a4a4;cursor:default}
+.ant-search-main{padding:10px 20px 40px}
+.ant-search-current{display:inline-flex;gap:7px;align-items:center;background:#f5f5f5;border:0;border-radius:24px;padding:11px 14px;color:#262626;font-size:14px;margin-bottom:8px}
+.ant-search-chip-section{margin-top:24px}
+.ant-search-chip-section:first-child{margin-top:20px}
+.ant-search-chip-section h2{font-size:17px;line-height:26px;font-weight:600;margin:0 0 14px}
+.ant-search-section-heading{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.ant-search-section-heading>button{border:0;background:none;color:#8b8b8b;font-size:12px;padding:5px}
+.ant-search-chips{display:flex;flex-wrap:wrap;gap:12px 9px}
+.ant-search-chips button{background:#f5f5f5;border:0;border-radius:24px;padding:10px 15px;font-size:15px;line-height:21px;color:#303030}
+.ant-search-chips button:hover{background:#eeeef4}
+.ant-search-results{padding-top:0}
+.ant-search-city-group{margin:0}
+.ant-search-suggestion{display:flex;align-items:center;gap:16px;width:100%;min-height:72px;padding:12px 0;text-align:left;border:0;background:#fff;color:#262626}
+.ant-search-suggestion>svg:first-child{flex:none;width:23px;color:var(--search-navy)}
+.ant-search-suggestion>span{flex:1;min-width:0}
+.ant-search-suggestion strong{display:block;font-size:17px;line-height:25px;font-weight:600;overflow-wrap:anywhere}
+.ant-search-suggestion small{display:block;color:#858585;font-size:14px;line-height:21px;margin-top:3px}
+.ant-search-category-name{font-weight:400}
+.ant-search-suggestion .ant-search-type-icon{color:#6753b9}
+.ant-search-suggestion .ant-search-row-arrow{flex:none;color:#aaa}
+.ant-search-keyword{margin-top:6px;border-top:1px solid #f3f3f3}
+.ant-search-keyword strong{font-size:15px;font-weight:400}
+.ant-search-keyword small{font-size:12px}
+.ant-search-hint{color:#858585;font-size:13px;line-height:22px;margin:10px 0}
+.ant-search-status{display:flex;gap:7px;align-items:center;color:#929292;font-size:12px;line-height:20px;margin:18px 0}
+.ant-search-status button,.ant-search-error button{color:var(--search-navy);border:0;background:#f2f3f9;border-radius:6px;padding:7px 12px;font-size:12px}
+.ant-search-error{color:#858585;font-size:13px;line-height:22px;margin-top:20px}
+@media(max-width:360px){.ant-search-brand{padding:0 16px}.ant-search-bar-row{padding-right:16px;gap:6px}.ant-search-main{padding-right:16px;padding-left:16px}.ant-search-chips{gap:10px 7px}.ant-search-chips button{padding:9px 13px;font-size:14px}}

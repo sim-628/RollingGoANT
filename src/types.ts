@@ -2,6 +2,7 @@ export interface Destination { code: string; name: string; countryName?: string 
 export interface SearchState {
   destination: Destination | null;
   keyword: string;
+  category?: { code: string; name: string };
 }
 export interface SkuData {
   sku_code: string;
