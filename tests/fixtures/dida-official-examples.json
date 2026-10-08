@@ -1,0 +1,249 @@
+{
+  "cities": {
+    "success": true,
+    "data": [
+      {
+        "city_code": "215",
+        "city_name": "Tokyo",
+        "country_code": "36",
+        "country_name": "Japan",
+        "country_alpha2": "JP"
+      }
+    ]
+  },
+  "countries": {
+    "success": true,
+    "data": [
+      {
+        "country_code": "36",
+        "country_name": "Japan",
+        "country_alpha2": "JP"
+      }
+    ]
+  },
+  "products": {
+    "success": true,
+    "data": {
+      "total": 15,
+      "page": 1,
+      "limit": 10,
+      "has_next": true,
+      "products": [
+        {
+          "product_code": "10549",
+          "title": "Example Park 1-Day Pass",
+          "subtitle": "Open-dated ticket",
+          "city_code": "215",
+          "city_name": "Tokyo",
+          "country_code": "36",
+          "country_name": "Japan",
+          "country_alpha2": "JP",
+          "category_code": "20101",
+          "category_name": "Theme Parks",
+          "currency": "USD",
+          "price": "79.00",
+          "images": [
+            {
+              "image_url": "https://cdn.example/banner.jpg",
+              "image_type": "BANNER"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "product_detail": {
+    "success": true,
+    "data": {
+      "product_code": "10549",
+      "title": "Example Park 1-Day Pass",
+      "subtitle": "Open-dated ticket",
+      "description": "One-day admission.",
+      "currency": "USD",
+      "price": "79.00",
+      "images": [
+        {
+          "image_url": "https://cdn.example/banner.jpg",
+          "image_type": "BANNER"
+        }
+      ],
+      "category_info": {
+        "sub_category_id": 201,
+        "sub_category_name": "Theme Parks",
+        "leaf_category_id": 20101,
+        "leaf_category_name": "Theme Park Tickets"
+      },
+      "package_list": [
+        {
+          "package_code": "90010001",
+          "package_name": "1-Day Pass",
+          "sku_list": [
+            {
+              "sku_code": "200100001",
+              "title": "Adult",
+              "sku_type": "adult",
+              "required": true
+            }
+          ],
+          "contact_info": [
+            {
+              "key": "name_english",
+              "required": true
+            },
+            {
+              "key": "mobile",
+              "required": true
+            },
+            {
+              "key": "email",
+              "required": false
+            }
+          ]
+        }
+      ],
+      "calendar_status": "not_requested"
+    }
+  },
+  "calendar": {
+    "success": true,
+    "data": [
+      {
+        "sku_code": "200100001",
+        "sku_title": "Adult",
+        "package_code": "90010001",
+        "currency": "USD",
+        "publish_status": 1,
+        "calendars": [
+          {
+            "month": "2026-09",
+            "dates": [
+              {
+                "date": "2026-09-08 00:00:00",
+                "cutoff_time_utc": "2026-09-07 15:00:00",
+                "selling_price": "79.00",
+                "inventory": 9999
+              },
+              {
+                "date": "2026-09-09 00:00:00",
+                "cutoff_time_utc": "2026-09-08 15:00:00",
+                "selling_price": "79.00",
+                "inventory": 9999
+              }
+            ]
+          },
+          {
+            "month": "2026-10",
+            "dates": [
+              {
+                "date": "2026-10-01 00:00:00",
+                "cutoff_time_utc": "2026-09-30 15:00:00",
+                "selling_price": "85.00",
+                "inventory": 5000
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "extra_info": {
+    "success": true,
+    "data": [
+      {
+        "package_code": "90010001",
+        "booking_extra_info": [
+          {
+            "key": "local_full_name",
+            "name": "Full Name",
+            "description": "Please enter",
+            "required": true,
+            "input_type": "text",
+            "validation_rules": {
+              "max_len": 100
+            }
+          },
+          {
+            "key": "mobile",
+            "name": "Phone Number",
+            "description": "Please enter",
+            "required": true,
+            "input_type": "mobile",
+            "options": [
+              {
+                "key": "CN",
+                "name": "China (+86)"
+              },
+              {
+                "key": "JP",
+                "name": "Japan (+81)"
+              }
+            ]
+          }
+        ],
+        "unit_extra_info": [
+          {
+            "key": "identification_type",
+            "name": "ID Type",
+            "description": "Please select",
+            "required": true,
+            "input_type": "single_select",
+            "options": [
+              {
+                "key": "passport",
+                "name": "Passport",
+                "required": false,
+                "input_type": "tile",
+                "options": [
+                  {
+                    "key": "passport_number",
+                    "name": "Passport Number",
+                    "required": true,
+                    "input_type": "text"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "availability": {
+    "success": true,
+    "data": {
+      "items": [
+        {
+          "sku_code": "200100001",
+          "selling_price": "79.00",
+          "currency": "USD",
+          "available": true
+        }
+      ]
+    }
+  },
+  "validate": {
+    "success": true,
+    "data": {
+      "valid": true,
+      "quote": {
+        "currency": "USD",
+        "total_amount": "158.00",
+        "items": [
+          {
+            "package_code": "90010001",
+            "start_time": "2026-09-18 09:30:00",
+            "currency": "USD",
+            "selling_total": "158.00",
+            "sku_list": [
+              {
+                "sku_code": "200100001",
+                "count": 2,
+                "selling_unit_price": "79.00"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
