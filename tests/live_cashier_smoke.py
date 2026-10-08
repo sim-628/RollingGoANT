@@ -11,6 +11,7 @@ TLS verification stays enabled and this script never changes certificate trust.
 """
 
 import argparse
+import getpass
 from decimal import Decimal
 import json
 import os
@@ -29,8 +30,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", default="http://127.0.0.1:3013")
     parser.add_argument("--chromium", default="/usr/bin/chromium")
+    parser.add_argument("--sites-private", action="store_true", help="Read Sites service access token from hidden stdin; never a supplier API key")
     args = parser.parse_args()
     origin = args.base_url.rstrip("/")
+    site_auth = {"OAI-Sites-Authorization": "Bearer " + getpass.getpass("Sites service token (input hidden): ")} if args.sites_private else {}
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
     report = {"mode": "live-demo-validation", "synthetic_contact": True, "api_calls": [],
               "api_errors": [], "blocked": [], "page_errors": [], "image_failures": []}
@@ -54,7 +57,7 @@ def main():
                 route.abort()
                 return
             report["api_calls"].append({"method": request.method, "path": parsed.path})
-        route.continue_()
+        route.continue_(headers={**request.headers, **site_auth} if same_origin else request.headers)
 
     def record_response(response):
         parsed = urlparse(response.url)
@@ -93,7 +96,7 @@ def main():
         page.on("pageerror", lambda error: report["page_errors"].append(str(error)))
         try:
             # Health uses the same gateway origin and contains no credentials.
-            health_response = page.request.get(f"{origin}/api/health")
+            health_response = page.request.get(f"{origin}/api/health", headers=site_auth)
             health = health_response.json()
             assert health_response.ok and health.get("success"), "Gateway health check failed"
             assert health["data"].get("configured") is True, "Live product credentials are not configured"

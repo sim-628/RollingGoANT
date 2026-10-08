@@ -81,6 +81,9 @@ export function createWorkerGateway(options = {}) {
       return { status: response.status, data: await parseUpstream(response) };
     } catch (error) {
       if (error instanceof HttpError) throw error;
+      // Operational diagnostics contain no request body, headers or credential.
+      console.error(JSON.stringify({ event: 'supplier_transport_failure', path,
+        kind: String(error?.name || 'Error'), detail: redact(String(error?.message || 'Unknown failure'), apiKey) }));
       const timeout = error?.name === 'TimeoutError' || error?.name === 'AbortError';
       throw new HttpError(timeout ? 504 : 502, timeout ? 'UPSTREAM_TIMEOUT' : 'UPSTREAM_UNAVAILABLE', timeout ? '供应商响应超时，请稍后重试' : '暂时无法连接供应商，请稍后重试');
     }
