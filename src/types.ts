@@ -1,9 +1,6 @@
 export interface Destination { code: string; name: string; countryName?: string }
 export interface SearchState {
   destination: Destination | null;
-  startDate: string;
-  endDate: string;
-  adults: number | null;
   keyword: string;
 }
 export interface SkuData {

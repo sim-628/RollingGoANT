@@ -19,7 +19,7 @@ function go(path: string) { window.location.hash = path; window.scrollTo({ top: 
 
 export default function App() {
   const [path, setPath] = useState(route);
-  const [search, setSearch] = useState<SearchState>({ destination: null, startDate: '', endDate: '', adults: null, keyword: '' });
+  const [search, setSearch] = useState<SearchState>({ destination: null, keyword: '' });
   const [booking, setBooking] = useState<BookingSelection | null>(null);
   const [order, setOrder] = useState<OrderResult | null>(null);
   useEffect(() => {

@@ -58,7 +58,7 @@ def choose_destination(page):
 
 def search_destination(page, router):
     choose_destination(page)
-    page.get_by_role("button", name="搜索活动", exact=True).click()
+    page.locator(".cat-search-panel").get_by_role("button", name="查询", exact=True).click()
     expect(page.get_by_role("heading", name=re.compile(r"Tokyo · 活动体验"))).to_be_visible()
     expect(page.get_by_role("heading", name=TITLE, exact=True)).to_be_visible()
     assert router.calls("/api/catalog/products")[-1]["params"]["city_codes"] == ["215"]
@@ -72,12 +72,16 @@ def open_detail(page, router):
     assert router.calendar_days, "The detail screen did not request an API calendar"
 
 
-def test_required_destination_and_optional_fields(browser, origin):
+def test_required_destination_and_simple_search(browser, origin):
     with mobile_page(browser, origin) as (page, router):
         expect(page.get_by_role("tab", name="活动", exact=True)).to_have_attribute("aria-selected", "true")
+        expect(page.get_by_role("button", name=re.compile(r"^出行日期"))).to_have_count(0)
+        expect(page.get_by_role("button", name=re.compile(r"^人数"))).to_have_count(0)
+        expect(page.get_by_role("button", name=re.compile(r"收藏"))).to_have_count(0)
+        expect(page.get_by_text("选择目的地即可出发，日期和人数稍后再定。", exact=True)).to_have_count(0)
         screenshot(page, "01-home-official-fixture")
         before = len(router.calls("/api/catalog/products"))
-        page.get_by_role("button", name="搜索活动", exact=True).click()
+        page.locator(".cat-search-panel").get_by_role("button", name="查询", exact=True).click()
         expect(page.get_by_role("alert")).to_have_text("请先选择一个目的地")
         assert len(router.calls("/api/catalog/products")) == before
         page.get_by_role("dialog").get_by_role("button", name=re.compile(r"Tokyo.*Japan")).click()
@@ -86,14 +90,13 @@ def test_required_destination_and_optional_fields(browser, origin):
         # while a smooth scroll is still settling.
         with page.expect_response(lambda response: "/api/catalog/products?" in response.url
                                   and "city_codes=215" in response.url):
-            page.get_by_role("button", name="搜索活动", exact=True).click()
+            page.locator(".cat-search-panel").get_by_role("button", name="查询", exact=True).click()
         expect(page.get_by_label("正在加载活动", exact=True)).to_have_count(0)
         expect(page.get_by_role("heading", name=re.compile(r"Tokyo · 活动体验"))).to_be_visible()
         expect(page.get_by_role("heading", name=TITLE, exact=True)).to_be_visible()
         params = router.calls("/api/catalog/products")[-1]["params"]
         assert params["city_codes"] == ["215"]
         assert not {"start_date", "end_date", "adults"}.intersection(params)
-        expect(page.get_by_role("button", name=re.compile(r"^人数.*成人数量"))).to_be_visible()
         image = page.locator(".cat-product-card img").first
         expect(image).to_have_attribute("src", "https://cdn.example/banner.jpg")
         image.scroll_into_view_if_needed()
@@ -102,24 +105,15 @@ def test_required_destination_and_optional_fields(browser, origin):
         screenshot(page, "02-catalog-official-fixture")
 
 
-def test_same_day_range_and_optional_adults(browser, origin):
+def test_catalog_starting_price_and_detail_without_favorites(browser, origin):
     with mobile_page(browser, origin) as (page, router):
-        choose_destination(page)
-        page.get_by_role("button", name=re.compile(r"^出行日期.*选填")).click()
-        dialog = page.get_by_role("dialog", name="选择出行日期")
-        today = page.evaluate("new Date().toLocaleDateString('sv-SE')")
-        dialog.get_by_role("button", name=today, exact=True).click()
-        dialog.get_by_role("button", name=re.compile(r"仅选择.*当天")).click()
-        dialog.get_by_role("button", name="确认日期", exact=True).click()
-        page.get_by_role("button", name=re.compile(r"^人数.*成人数量")).click()
-        page.get_by_role("dialog").get_by_role("button", name="暂不选择", exact=True).click()
-        page.get_by_role("button", name="搜索活动", exact=True).click()
-        expect(page.get_by_role("heading", name=re.compile(r"Tokyo · 活动体验"))).to_be_visible()
-        page.get_by_role("button", name=re.compile(r"^出行日期.*选填")).click()
-        values = page.locator(".cat-date-summary strong").all_text_contents()
-        assert len(values) == 2 and values[0] == values[1], values
-        page.get_by_role("dialog").get_by_role("button", name="关闭", exact=True).click()
-        assert "adults" not in router.calls("/api/catalog/products")[-1]["params"]
+        expect(page.locator(".cat-product-card .cat-product-price")).to_have_text(re.compile(r".*79\.00\s*起$"))
+        expect(page.get_by_text("选择套餐查看价格", exact=True)).to_have_count(0)
+        assert router.calls("/api/catalog/prices")[-1]["params"]["product_codes"] == ["10549"]
+        open_detail(page, router)
+        expect(page.get_by_role("button", name=re.compile(r"收藏"))).to_have_count(0)
+        expect(page.get_by_role("heading", name="选择日期", exact=True)).to_be_visible()
+        expect(page.get_by_role("heading", name="选择数量", exact=True)).to_be_visible()
 
 
 def test_api_failure_can_recover(browser, origin):
@@ -282,8 +276,8 @@ def test_empty_unit_rules_still_send_each_traveller(browser, origin):
         assert_order_payload(router, expected_count=2, with_traveller_fields=False)
 
 
-TESTS = [test_required_destination_and_optional_fields,
-         test_same_day_range_and_optional_adults,
+TESTS = [test_required_destination_and_simple_search,
+         test_catalog_starting_price_and_detail_without_favorites,
          test_api_failure_can_recover,
          test_calendar_dynamic_fields_and_order_draft,
          test_price_increase_requires_confirmation,

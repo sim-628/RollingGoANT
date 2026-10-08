@@ -22,10 +22,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return result.data;
 }
 
-export function apiGet<T>(path: string, params: Record<string, string | number | undefined> = {}): Promise<T> {
+export function apiGet<T>(path: string, params: Record<string, string | number | undefined> = {}, init: RequestInit = {}): Promise<T> {
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) if (value !== undefined && value !== '') query.set(key, String(value));
-  return request<T>(`${path}${query.size ? `?${query.toString()}` : ''}`);
+  return request<T>(`${path}${query.size ? `?${query.toString()}` : ''}`, init);
 }
 export function apiPost<T>(path: string, body: unknown): Promise<T> {
   return request<T>(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });

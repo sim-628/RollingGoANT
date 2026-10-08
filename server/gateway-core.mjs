@@ -135,6 +135,7 @@ function routeFor(pathname) {
     '/api/catalog/countries': { method: 'GET', path: '/countries', allowed: [], ttl: 300_000 },
     '/api/catalog/cities': { method: 'GET', path: '/cities', allowed: ['country_codes'], ttl: 300_000 },
     '/api/catalog/categories': { method: 'GET', path: '/categories', allowed: [], ttl: 300_000 },
+    '/api/catalog/prices': { method: 'GET', path: '/catalog-prices', allowed: ['product_codes'], required: ['product_codes'], ttl: 0 },
     '/api/catalog/products': { method: 'GET', path: '/products', allowed: ['category_codes', 'city_codes', 'country_codes', 'keyword', 'limit', 'page', 'product_code'], required: ['page', 'limit'], ttl: 30_000 },
     '/api/catalog/packages/extra-info': { method: 'GET', path: '/packages/extra-info', allowed: ['package_codes'], required: ['package_codes'], ttl: 30_000 },
     '/api/catalog/skus/calendar': { method: 'GET', path: '/skus/calendar', allowed: ['sku_codes', 'start_date', 'end_date'], required: ['sku_codes', 'start_date', 'end_date'], ttl: 0 },
@@ -184,8 +185,8 @@ function buildQuery(route, params) {
   return clean.toString();
 }
 
-async function parseUpstream(response) {
-  if (Number(response.headers.get('content-length') || 0) > MAX_RESPONSE_BYTES) {
+async function parseUpstream(response, maxBytes = MAX_RESPONSE_BYTES) {
+  if (Number(response.headers.get('content-length') || 0) > maxBytes) {
     await response.body?.cancel();
     throw new HttpError(502, 'UPSTREAM_RESPONSE', '供应商响应过大，请稍后重试');
   }
@@ -197,7 +198,7 @@ async function parseUpstream(response) {
       const { done, value } = await reader.read();
       if (done) break;
       size += value.byteLength;
-      if (size > MAX_RESPONSE_BYTES) {
+      if (size > maxBytes) {
         await reader.cancel();
         throw new HttpError(502, 'UPSTREAM_RESPONSE', '供应商响应过大，请稍后重试');
       }

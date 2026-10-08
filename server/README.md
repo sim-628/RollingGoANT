@@ -37,6 +37,7 @@ node --test server/index.test.mjs
 | `GET /api/catalog/cities` | 无；可选 `country_codes` | `/cities` |
 | `GET /api/catalog/categories` | 无 | `/categories` |
 | `GET /api/catalog/products` | `page`、`limit` | `/products` |
+| `GET /api/catalog/prices` | `product_codes`（1–4 个不重复的商品编码） | 商品详情 + 全套餐适用 SKU 日历的只读聚合 |
 | `GET /api/catalog/products/:productCode` | 路径商品编码 | `/products/:productCode` |
 | `GET /api/catalog/packages/extra-info` | `package_codes` | `/packages/extra-info` |
 | `GET /api/catalog/skus/calendar` | `sku_codes`、`start_date`、`end_date` | `/skus/calendar` |
@@ -46,6 +47,12 @@ node --test server/index.test.mjs
 | `GET /api/health` | 无 | 本站状态，不请求供应商，不暴露凭据 |
 
 商品搜索支持供应商已有的 `country_codes`、`city_codes`、`category_codes`、`keyword`、`product_code`、`page` 和 `limit`（1–50）。可选日期、人数用于查询实际 SKU 日历或预订库存；供应商商品搜索本身没有日期／人数参数。日历日期必须使用目的地当地时间 `yyyy-MM-dd HH:mm:ss`，区间不超过 90 天。
+
+商品卡片通过 `/api/catalog/prices?product_codes=1047,104G,105` 异步取得真实起价，列表接口原有 `price` 值不会被改写。返回 `data.prices` 数组，每项包含 `product_code`、`status`（`ready` / `unavailable` / `error`）、`price`、`currency`；完成日历查询的项目另带 `start_date`、`end_date`、`basis: "adult_or_general_unit"`。仅 `ready` 可展示“价格 + 起”；其他项目的价格与币种为 `null`，不能编造兜底价格。非 `ready` 状态也包含 `reason` 用于诊断，浏览器不必展示内部原因。
+
+起价取所有套餐中成人 SKU 的真实单价；没有成人分类的套餐使用非儿童／婴儿的通用 SKU（例如每人、团体、门票）。日历窗口为接下来 90 个日历日期，开始日期不早于供应商要求的 Asia/Shanghai 今天，也不早于任何套餐的目的地今天。仅纳入已发布、有库存、未超过 UTC 截止时间的价格，按四位小数定点整数比较；不以婴儿零价或目录 `0.00` 冒充成人起价，不换算不同币种，不把缺失套餐日历的一部分当作完整最低价。实际单价仍以详情及预订时重新查询的日历和最终报价为准。
+
+每次起价请求最多 4 个商品，每商品最多 100 个适用 SKU；超过时不截断报价，返回 `unavailable`。日历按 20 个 SKU 批量查询，每请求最多 24 次供应商读取，服务内供应商并发最多 4，进行中的不同商品最多 20 个（等待队列最多 16 个），重复商品的进行中请求共享一次读取。超出容量返回可重试的 `error` / `price_busy`。每商品从进入队列起最多运行 22 秒，到期取消排队及上游请求，返回 `error` / `price_timeout`；起价上游单次响应限制 2 MiB，详情和每批日历立即归约为少量商品编码、最低价和币种状态，不跨批保留完整内容。任何后续批次缺失或失败都丢弃部分最低价。仅展示用的起价摘要缓存 30 秒且最多 500 项，错误不缓存；库存、直接日历与订单验证接口仍不缓存。供应商官方日历契约见 [DidaTicket OpenAPI schema](https://didatickettest.wysiwysi.com/api/distribution/schema/?format=json)，当前公开商品已核实使用 `selling_price`、`currency`、`publish_status`、`inventory` 和 `cutoff_time_utc` 字段。
 
 订单联系人固定为 `first_name`、`family_name`、`mobile`，手机号格式为 `86-13800000000`。商品详情的 `contact_info` 是字段规则，不是订单请求形状；例如 `name_english` 规则要求将英文姓名拆到上述两个姓名字段。商品要求的额外信息仍按 `/packages/extra-info` 的真实规则填写。
 

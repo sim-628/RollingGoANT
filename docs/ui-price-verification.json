@@ -1,0 +1,33 @@
+{
+  "date": "2026-10-08",
+  "changes": [
+    "remove_all_favorites",
+    "destination_only_search",
+    "query_button_only",
+    "remove_search_help",
+    "live_minimum_package_prices"
+  ],
+  "backend_tests": 66,
+  "build": "passed",
+  "compiled_worker": "passed",
+  "browser": "Codex in-app browser using read-only local preview of live public supplier gateway",
+  "viewports": [
+    {
+      "width": 320,
+      "scroll_width": 320
+    },
+    {
+      "width": 393,
+      "scroll_width": 393
+    }
+  ],
+  "home_favorite_elements": 0,
+  "sample_starting_prices": {
+    "1047": "USD17.60",
+    "104G": "USD8.52",
+    "105": "USD25.69"
+  },
+  "destination_query": "Malacca City,7products all prices hydrated",
+  "price_basis": "available adult/general unit minima across all packages, next90days",
+  "python_browser_suite": "updated,not run"
+}

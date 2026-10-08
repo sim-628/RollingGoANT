@@ -44,11 +44,11 @@ type CalendarSku = {
 };
 type Availability = { items: { sku_code: string; available: boolean; selling_price: string; currency: string }[] };
 
-function Icon({ name, size = 22 }: { name: 'back' | 'next' | 'pin' | 'calendar' | 'check' | 'heart' | 'share' | 'image' | 'minus' | 'plus' | 'clock'; size?: number }) {
+function Icon({ name, size = 22 }: { name: 'back' | 'next' | 'pin' | 'calendar' | 'check' | 'share' | 'image' | 'minus' | 'plus' | 'clock'; size?: number }) {
   const paths: Record<string, string> = {
     back: 'm14 5-7 7 7 7', next: 'm9 5 7 7-7 7', pin: 'M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 1 1 16 0ZM12 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6',
     calendar: 'M5 5h14a2 2 0 0 1 2 2v13H3V7a2 2 0 0 1 2-2ZM3 10h18M7 3v4M17 3v4M7 14h2M13 14h2M7 17h2',
-    check: 'm5 12 4 4L19 6', heart: 'M20.8 4.6a5.6 5.6 0 0 0-8 .1l-.8.8-.8-.8a5.6 5.6 0 1 0-8 7.9L12 21l8.8-8.4a5.6 5.6 0 0 0 0-8Z',
+    check: 'm5 12 4 4L19 6',
     share: 'M15 8a3 3 0 1 0 0-4 3 3 0 0 0 0 4ZM6 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM18 22a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM8.5 10.5l7-4M8.5 13.5l7 4',
     image: 'M3 3h18v18H3V3ZM3 17l6-6 4 4 3-3 5 5M17 7h.01', minus: 'M5 12h14', plus: 'M5 12h14M12 5v14', clock: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM12 7v5l3 2',
   };
@@ -167,10 +167,9 @@ export default function ProductDetail({ productCode, search, onBack, onBook }: {
   const [imageIndex, setImageIndex] = useState(0);
   const [failedImages, setFailedImages] = useState<string[]>([]);
   const [activeSection, setActiveSection] = useState('ant-packages');
-  const [saved, setSaved] = useState(false);
   const [toast, setToast] = useState('');
   const [date, setDate] = useState('');
-  const [month, setMonth] = useState((search.startDate || localDate()).slice(0, 7));
+  const [month, setMonth] = useState(localDate().slice(0, 7));
   const [calendars, setCalendars] = useState<CalendarSku[]>([]);
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [calendarError, setCalendarError] = useState('');
@@ -203,11 +202,11 @@ export default function ProductDetail({ productCode, search, onBack, onBook }: {
     const initial: Record<string, number> = {};
     (selectedPackage.sku_list || []).forEach(sku => {
       const requiredMin = sku.required ? Math.max(1, sku.sku_min_pax || 0) : 0;
-      const chosen = sku.sku_code === primary?.sku_code ? Math.max(requiredMin, search.adults || 1, sku.sku_min_pax || 0) : requiredMin;
+      const chosen = sku.sku_code === primary?.sku_code ? Math.max(requiredMin, 1, sku.sku_min_pax || 0) : requiredMin;
       initial[sku.sku_code] = Math.min(99, chosen, sku.sku_max_pax && sku.sku_max_pax > 0 ? sku.sku_max_pax : Infinity);
     });
     setCounts(initial);
-    const initialDate = search.startDate && search.startDate >= minimumDate ? search.startDate : minimumDate;
+    const initialDate = minimumDate;
     setDate(initialDate); setMonth(initialDate.slice(0, 7)); setTime(''); setBookingError('');
   // The package choice initializes counts once; changing counts must not reset the selection.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -327,7 +326,7 @@ export default function ProductDetail({ productCode, search, onBack, onBook }: {
   if (productLoading || !product) return <div className="detail-page"><header className="detail-toolbar"><button className="detail-icon-button" aria-label="返回活动列表" onClick={onBack}><Icon name="back" /></button><span>活动详情</span><span /></header>{productLoading ? <div className="detail-loading"><div className="detail-skeleton detail-skeleton-hero" /><div className="detail-skeleton detail-skeleton-title" /><div className="detail-skeleton detail-skeleton-copy" /><div className="detail-skeleton detail-skeleton-copy" /><p>正在为你加载活动详情…</p></div> : <div className="detail-empty"><Icon name="image" size={44} /><h2>暂时无法查看此活动</h2><p>{productError || '活动信息暂不可用'}</p><button className="detail-primary" onClick={() => setReload(value => value + 1)}>重新加载</button><button className="detail-text-button" onClick={onBack}>返回活动列表</button></div>}</div>;
 
   return <div className="detail-page">
-    <header className="detail-toolbar"><button className="detail-icon-button" aria-label="返回活动列表" onClick={onBack}><Icon name="back" /></button><span>活动详情</span><div className="detail-toolbar-actions"><button className={`detail-icon-button ${saved ? 'is-saved' : ''}`} aria-label={saved ? '取消收藏' : '收藏活动'} onClick={() => { setSaved(value => !value); setToast(saved ? '已取消收藏' : '已收藏此活动'); }}><Icon name="heart" /></button><button className="detail-icon-button" aria-label="分享活动" onClick={share}><Icon name="share" size={20} /></button></div></header>
+    <header className="detail-toolbar"><button className="detail-icon-button" aria-label="返回活动列表" onClick={onBack}><Icon name="back" /></button><span>活动详情</span><div className="detail-toolbar-actions"><button className="detail-icon-button" aria-label="分享活动" onClick={share}><Icon name="share" size={20} /></button></div></header>
     <div className="detail-gallery">
       {images.length && !failedImages.includes(images[imageIndex]?.image_url) ? <img src={images[imageIndex]?.image_url} alt={`${product.title} · 图片 ${imageIndex + 1}`} className="detail-hero-image" onError={() => setFailedImages(current => [...current, images[imageIndex].image_url])} /> : <div className="detail-no-image"><Icon name="image" size={48} /><span>{images.length ? '活动图片暂时无法显示' : '活动图片暂未提供'}</span></div>}
       {images.length > 1 && <><button className="detail-gallery-arrow detail-gallery-prev" aria-label="上一张活动图片" onClick={() => setImageIndex(index => (index - 1 + images.length) % images.length)}><Icon name="back" /></button><button className="detail-gallery-arrow detail-gallery-next" aria-label="下一张活动图片" onClick={() => setImageIndex(index => (index + 1) % images.length)}><Icon name="next" /></button><span className="detail-image-count"><Icon name="image" size={14} />{imageIndex + 1} / {images.length}</span><div className="detail-gallery-dots">{images.slice(0, 12).map((image, index) => <button key={`${image.image_url}-${index}`} className={imageIndex === index ? 'active' : ''} aria-label={`查看第 ${index + 1} 张图片`} onClick={() => setImageIndex(index)} />)}</div></>}
@@ -362,8 +361,6 @@ export default function ProductDetail({ productCode, search, onBack, onBook }: {
           {packageSections.length > 0 && <details className="detail-package-inclusions"><summary>查看套餐详情 <Icon name="next" size={15} /></summary>{packageSections.map(section => <div key={section.key}><h4>{section.title}</h4><p className="detail-rich-text">{section.content}</p></div>)}</details>}
           <div className="detail-booking-divider" />
           <div className="detail-field-heading"><h3>选择日期</h3><span>目的地当地日期</span></div>
-          {search.startDate && search.startDate <= destinationToday && selectedPackage?.timeslot_type !== 1 && <p className="detail-date-context">此套餐当前支持预订次日及之后的出行日期。</p>}
-          {search.startDate && search.endDate && search.startDate !== search.endDate && <p className="detail-date-context">搜索范围：{search.startDate.slice(5).replace('-', '/')} – {search.endDate.slice(5).replace('-', '/')}，请选一个出行日期</p>}
           <div className="detail-calendar">
             <div className="detail-calendar-header"><button className="detail-icon-button" aria-label="上一个月" disabled={month <= minimumDate.slice(0, 7)} onClick={() => { setMonth(value => addMonths(value, -1)); setDate(''); }}><Icon name="back" size={18} /></button><strong>{Number(month.slice(0, 4))} 年 {Number(month.slice(5))} 月</strong><button className="detail-icon-button" aria-label="下一个月" onClick={() => { setMonth(value => addMonths(value, 1)); setDate(''); }}><Icon name="next" size={18} /></button></div>
             <div className="detail-calendar-weekdays">{['一', '二', '三', '四', '五', '六', '日'].map(day => <span key={day}>{day}</span>)}</div>

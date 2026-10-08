@@ -2,6 +2,7 @@ import {
   UPSTREAM, MAX_BODY_BYTES, HttpError, envelope, redact, validateLines,
   validateOrder, moneyUnits, checkFinalQuote, routeFor, buildQuery, parseUpstream,
 } from './gateway-core.mjs';
+import { createCatalogPriceService } from './catalog-prices.mjs';
 
 export const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
@@ -70,7 +71,7 @@ export function createWorkerGateway(options = {}) {
     }
   }
 
-  async function upstream(path, method, query = '', body) {
+  async function upstream(path, method, query = '', body, requestOptions = {}) {
     try {
       const response = await fetchImpl(`${UPSTREAM}${path}${query ? `?${query}` : ''}`, {
         method,
@@ -78,13 +79,13 @@ export function createWorkerGateway(options = {}) {
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
         // Workers supports manual/follow only. Manual keeps credentials on the
         // fixed supplier origin, and every redirect is explicitly refused.
-        redirect: 'manual', signal: AbortSignal.timeout(timeoutMs),
+        redirect: 'manual', signal: requestOptions.signal ? AbortSignal.any([AbortSignal.timeout(timeoutMs), requestOptions.signal]) : AbortSignal.timeout(timeoutMs),
       });
       if (response.status >= 300 && response.status < 400) {
         await response.body?.cancel();
         throw new HttpError(502, 'UPSTREAM_REDIRECT', '供应商返回了不受支持的跳转，请稍后重试');
       }
-      return { status: response.status, data: await parseUpstream(response) };
+      return { status: response.status, data: await parseUpstream(response, requestOptions.maxResponseBytes) };
     } catch (error) {
       if (error instanceof HttpError) throw error;
       // Operational diagnostics contain no request body, headers or credential.
@@ -94,6 +95,8 @@ export function createWorkerGateway(options = {}) {
       throw new HttpError(timeout ? 504 : 502, timeout ? 'UPSTREAM_TIMEOUT' : 'UPSTREAM_UNAVAILABLE', timeout ? '供应商响应超时，请稍后重试' : '暂时无法连接供应商，请稍后重试');
     }
   }
+
+  const catalogPrices = createCatalogPriceService({ upstream, now });
 
   return async function fetch(request) {
     try {
@@ -119,6 +122,7 @@ export function createWorkerGateway(options = {}) {
       const query = request.method === 'GET' ? buildQuery(route, url.searchParams) : '';
       if (!apiKey) throw new HttpError(503, 'API_NOT_CONFIGURED', '商品服务尚未连接，请联系管理员配置 Dida API');
       if (request.method === 'GET') {
+        if (route.path === '/catalog-prices') return json(200, await catalogPrices(url.searchParams.get('product_codes')));
         const cacheKey = `${route.path}?${query}`;
         const cached = cache.get(cacheKey);
         if (cached && cached.expires > now()) return json(cached.status, cached.data);

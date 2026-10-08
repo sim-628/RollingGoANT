@@ -137,6 +137,24 @@ class FixtureRouter:
             response = deepcopy(EXAMPLES["products"])
             response["data"].update(total=1, has_next=False)
             self.fulfill(route, response)
+        elif path == "/api/catalog/prices":
+            # This application-owned summary uses the official example's
+            # USD 79.00 adult calendar quote. Backend tests verify aggregation;
+            # this fixture verifies how the returned summary is displayed.
+            calendar = EXAMPLES["calendar"]["data"][0]
+            example_price = calendar["calendars"][0]["dates"][0]["selling_price"]
+            product_code = EXAMPLES["product_detail"]["data"]["product_code"]
+            first = date.today()
+            summaries = []
+            for code in params.get("product_codes", [""])[0].split(","):
+                known = code == product_code
+                summaries.append({"product_code": code, "status": "ready" if known else "unavailable",
+                                  "price": example_price if known else None,
+                                  "currency": calendar["currency"] if known else None,
+                                  "start_date": first.isoformat(),
+                                  "end_date": (first + timedelta(days=89)).isoformat(),
+                                  "basis": "adult_or_general_unit"})
+            self.fulfill(route, {"success": True, "data": {"prices": summaries}})
         elif path == "/api/catalog/skus/calendar":
             first = max(date.fromisoformat(params["start_date"][0][:10]), date.today())
             days = [first + timedelta(days=offset) for offset in range(3)]

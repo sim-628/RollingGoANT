@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 
 import { UPSTREAM, MAX_BODY_BYTES, HttpError, envelope, redact, validateLines, validateOrder, moneyUnits, checkFinalQuote, routeFor, buildQuery, parseUpstream } from './gateway-core.mjs';
+import { createCatalogPriceService } from './catalog-prices.mjs';
 
 const ROOT = resolve(fileURLToPath(new URL('../', import.meta.url)));
 const MIME = {
@@ -105,22 +106,24 @@ export function createAppServer(options = {}) {
     }
   }
 
-  async function upstream(path, method, query = '', body) {
+  async function upstream(path, method, query = '', body, requestOptions = {}) {
     try {
       const response = await fetchImpl(`${UPSTREAM}${path}${query ? `?${query}` : ''}`, {
         method,
         headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json', 'Accept-Language': 'zh-CN', ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}) },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
         redirect: 'error',
-        signal: AbortSignal.timeout(timeoutMs),
+        signal: requestOptions.signal ? AbortSignal.any([AbortSignal.timeout(timeoutMs), requestOptions.signal]) : AbortSignal.timeout(timeoutMs),
       });
-      return { status: response.status, data: await parseUpstream(response) };
+      return { status: response.status, data: await parseUpstream(response, requestOptions.maxResponseBytes) };
     } catch (error) {
       if (error instanceof HttpError) throw error;
       const timeout = error?.name === 'TimeoutError' || error?.name === 'AbortError';
       throw new HttpError(timeout ? 504 : 502, timeout ? 'UPSTREAM_TIMEOUT' : 'UPSTREAM_UNAVAILABLE', timeout ? '供应商响应超时，请稍后重试' : '暂时无法连接供应商，请稍后重试');
     }
   }
+
+  const catalogPrices = createCatalogPriceService({ upstream, now });
 
   const server = createServer(async (req, res) => {
     securityHeaders(res);
@@ -156,6 +159,10 @@ export function createAppServer(options = {}) {
       const query = req.method === 'GET' ? buildQuery(route, url.searchParams) : '';
       if (!apiKey) throw new HttpError(503, 'API_NOT_CONFIGURED', '商品服务尚未连接，请联系管理员配置 Dida API');
       if (req.method === 'GET') {
+        if (route.path === '/catalog-prices') {
+          sendJson(res, 200, await catalogPrices(url.searchParams.get('product_codes')), apiKey);
+          return;
+        }
         const cacheKey = `${route.path}?${query}`;
         const cached = cache.get(cacheKey);
         if (cached && cached.expires > now()) { sendJson(res, cached.status, cached.data, apiKey); return; }

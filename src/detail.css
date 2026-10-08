@@ -10,8 +10,6 @@
 .detail-icon-button { width: 36px; height: 36px; border: 0; border-radius: 50%; background: transparent; color: #242328; display: inline-flex; justify-content: center; align-items: center; padding: 0; flex: 0 0 auto; }
 .detail-icon-button:hover { background: #f6f5f5; }
 .detail-icon-button:disabled { color: #d2d0d4; background: transparent; }
-.detail-icon-button.is-saved { color: var(--detail-accent); }
-.detail-icon-button.is-saved svg { fill: #fff0e9; }
 .detail-gallery { width: calc(100% - 40px); height: 405px; margin: 20px; border-radius: 18px; overflow: hidden; position: relative; background: #f0eeea; }
 .detail-hero-image { width: 100%; height: 100%; object-fit: cover; display: block; }
 .detail-no-image { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: linear-gradient(140deg, #f5f0e9, #ecece9); color: #94908a; font-size: 14px; }

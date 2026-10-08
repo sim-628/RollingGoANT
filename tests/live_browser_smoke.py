@@ -31,7 +31,7 @@ def main():
     origin = args.base_url.rstrip("/")
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
     report = {"mode": "live-read-only", "api_calls": [], "api_errors": [], "blocked": [],
-              "failed_images": [], "console_errors": [], "page_errors": []}
+              "failed_images": [], "console_errors": [], "page_errors": [], "catalog_starting_prices": {}}
     api_data = {}
 
     def guard(route):
@@ -60,6 +60,9 @@ def main():
         try:
             payload = response.json()
             api_data[parsed.path] = payload
+            if parsed.path == "/api/catalog/prices" and payload.get("success"):
+                for price in payload.get("data", {}).get("prices", []):
+                    report["catalog_starting_prices"][price["product_code"]] = price
             if not response.ok or payload.get("success") is False:
                 report["api_errors"].append({"path": parsed.path, "status": response.status,
                                              "code": payload.get("error", {}).get("code"),
@@ -105,18 +108,27 @@ def main():
             report["product_title"] = title
             report["catalog_total"] = api_data["/api/catalog/products"]["data"]["total"]
             report["city_count"] = len(api_data["/api/catalog/cities"]["data"])
+            expect(page.get_by_role("button", name=re.compile(r"收藏"))).to_have_count(0)
+            expect(page.get_by_role("button", name=re.compile(r"^出行日期"))).to_have_count(0)
+            expect(page.get_by_role("button", name=re.compile(r"^人数"))).to_have_count(0)
+            card = page.locator(".cat-product-card").filter(has=page.get_by_role("heading", name=title, exact=True))
+            expect(card.locator(".cat-product-price")).to_contain_text("起", timeout=90000)
+            starting_price = report["catalog_starting_prices"].get(args.product_code)
+            assert starting_price and starting_price["status"] == "ready", "No real starting price returned for this product"
+            report["catalog_starting_price"] = starting_price
             save(page, "08-home")
             page.get_by_role("button", name=re.compile(r"^目的地.*必填")).click()
             dialog = page.get_by_role("dialog", name="想去哪里？")
             dialog.get_by_role("textbox", name="搜索城市或国家").fill(product["city_name"])
             dialog.get_by_role("button", name=re.compile(re.escape(product["city_name"]))).first.click()
-            page.get_by_role("button", name="搜索活动", exact=True).click()
+            page.locator(".cat-search-panel").get_by_role("button", name="查询", exact=True).click()
             expect(page.get_by_role("heading", name=title, exact=True)).to_be_visible(timeout=30000)
             page.get_by_role("heading", name=title, exact=True).scroll_into_view_if_needed()
             save(page, "09-catalog")
             page.get_by_role("button", name=f"查看 {title}", exact=True).click()
             expect(page.get_by_role("heading", name=title, exact=True)).to_be_visible(timeout=30000)
             expect(page.locator(".detail-calendar-note")).to_contain_text("USD", timeout=30000)
+            expect(page.get_by_role("button", name=re.compile(r"收藏"))).to_have_count(0)
             save(page, "10-product")
             available = page.locator(".detail-calendar-day:not([disabled])")
             assert available.count() > 0, "No real bookable date returned for this product"
@@ -155,7 +167,7 @@ def main():
             assert not report["blocked"], "The UI attempted a prohibited operation"
             assert not report["page_errors"], report["page_errors"]
             assert not report["mobile_overflow"], "Mobile page overflows"
-            summary = {key: report[key] for key in ["mode", "product_code", "product_title", "catalog_total", "city_count",
+            summary = {key: report[key] for key in ["mode", "product_code", "product_title", "catalog_total", "city_count", "catalog_starting_price",
                                                    "booking_form_reached", "contact_fields_empty", "whatsapp_number_input_rendered",
                                                    "detail_image_loaded", "booking_image_fallback_visible", "mobile_overflow", "api_errors", "blocked", "page_errors"]}
             summary["image_failure_count"] = len(report["failed_images"])
