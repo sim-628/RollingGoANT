@@ -96,3 +96,20 @@
 .cat-brand-logo{display:block;width:134px;height:30px}
 .cat-brand small{font-size:14px;line-height:22px;font-weight:600;margin-top:6px}
 .cat-destination-field strong.is-placeholder{font-size:14px;line-height:22px}
+
+/* Homepage recommendations: image, title and supplier description in a horizontal rail. */
+.catalog-home{--cat-orange:#000d3e;--cat-muted:#686868;background:#fff9fa}
+.cat-home-recommendations{margin-left:4px;margin-right:4px}
+.cat-home-recommendations .cat-section-title{margin-bottom:24px}
+.cat-home-recommendations .cat-category-row{gap:24px;margin:0 -20px 24px;padding:0 20px;align-items:stretch}
+.cat-home-recommendations .cat-category-row button{position:relative;padding:0 0 10px;border:0;border-bottom:3px solid transparent;border-radius:0;background:transparent;color:#686868;font-size:14px;line-height:22px;font-weight:400}
+.cat-home-recommendations .cat-category-row button.selected{background:transparent;border-color:#e6063c;color:#000d3e;font-weight:600}
+.cat-home-recommendations .cat-product-grid{display:flex;gap:24px;overflow-x:auto;margin:0 -20px;padding:0 20px 4px;scrollbar-width:none;scroll-snap-type:x proximity;scroll-padding-inline:20px;align-items:flex-start}
+.cat-home-recommendations .cat-product-grid::-webkit-scrollbar{display:none}
+.cat-home-recommendations .cat-product-card,.cat-home-recommendations .cat-skeleton-card{flex:0 0 200px;border:0;border-radius:0;background:transparent;scroll-snap-align:start;box-shadow:none}
+.cat-home-recommendations .cat-product-card:hover{box-shadow:none}
+.cat-home-recommendations .cat-product-photo,.cat-home-recommendations .cat-skeleton-photo{height:auto;aspect-ratio:5/4;border-radius:8px;overflow:hidden}
+.cat-home-recommendations .cat-product-info{min-height:0;padding:10px 0 0}
+.cat-home-recommendations .cat-product-info h3{font-size:14px;line-height:20px;font-weight:600;-webkit-line-clamp:2}
+.cat-home-recommendations .cat-product-subtitle{margin-top:6px;font-size:12px;line-height:20px;color:#686868;white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.cat-home-recommendations .cat-skeleton-line{margin-left:0;margin-right:0}

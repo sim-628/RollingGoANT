@@ -287,10 +287,16 @@ def test_direct_product_link_returns_home(browser, origin):
 
 def test_catalog_starting_price_and_detail_without_favorites(browser, origin):
     with mobile_page(browser, origin) as (page, router):
+        expect(page.locator(".cat-product-price, .cat-see-price, .cat-price-retry")).to_have_count(0)
+        assert not router.calls("/api/catalog/prices"), "Homepage recommendations must not request prices"
+        search_destination(page, router)
         expect(page.locator(".cat-product-card .cat-product-price")).to_have_text(re.compile(r".*79\.00\s*起$"))
         expect(page.get_by_text("选择套餐查看价格", exact=True)).to_have_count(0)
         assert router.calls("/api/catalog/prices")[-1]["params"]["product_codes"] == ["10549"]
-        open_detail(page, router)
+        page.get_by_role("button", name=f"查看 {TITLE}", exact=True).click()
+        expect(page.get_by_role("heading", name=TITLE, exact=True)).to_be_visible()
+        expect(page.locator(".detail-calendar-note")).to_contain_text("USD")
+        assert router.calendar_days, "The detail screen did not request an API calendar"
         expect(page.get_by_role("button", name=re.compile(r"收藏"))).to_have_count(0)
         expect(page.get_by_role("heading", name="选择日期", exact=True)).to_be_visible()
         expect(page.get_by_role("heading", name="选择数量", exact=True)).to_be_visible()

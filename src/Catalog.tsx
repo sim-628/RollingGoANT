@@ -79,6 +79,7 @@ export default function Catalog({ mode, onOpenProduct, activeSearch, onSearchCha
   const productCodes = products.map(product => product.product_code).join(',');
   const priceCache = useRef(new Map<string, { value: StartingPrice; expires: number }>());
   useEffect(() => {
+    if (!submitted) { setStartingPrices({}); return; }
     let active = true;
     const controller = new AbortController();
     const codes = productCodes.split(',').filter(Boolean);
@@ -110,7 +111,7 @@ export default function Catalog({ mode, onOpenProduct, activeSearch, onSearchCha
     }
     void loadPrices();
     return () => { active = false; controller.abort(); };
-  }, [productCodes, priceRetry]);
+  }, [submitted, productCodes, priceRetry]);
 
   useEffect(() => { if (!toast) return; const timer = setTimeout(() => setToast(''), 3400); return () => clearTimeout(timer); }, [toast]);
 
@@ -137,7 +138,7 @@ export default function Catalog({ mode, onOpenProduct, activeSearch, onSearchCha
     : activeSearch.keyword ? `“${activeSearch.keyword}”的搜索结果`
     : activeSearch.category ? categoryNameZh(activeSearch.category.name) : '活动列表';
 
-  return <div className="catalog">
+  return <div className={`catalog ${submitted ? '' : 'catalog-home'}`}>
     {submitted ? <header className="cat-list-header">
       <button className="cat-icon-button" aria-label="返回首页" onClick={onHome}><span className="cat-back-icon"><CatalogIcon name="chevron"/></span></button>
       <h1>活动列表</h1><span className="cat-list-header-spacer"/>
@@ -152,12 +153,12 @@ export default function Catalog({ mode, onOpenProduct, activeSearch, onSearchCha
         </div>
       </section>}
 
-      <section className="cat-results-section" id="cat-results">
+      <section className={`cat-results-section ${submitted ? '' : 'cat-home-recommendations'}`} id="cat-results">
         <div className="cat-section-title"><h2>{submitted ? resultTitle : '热门推荐'}</h2></div>
         {submitted && <button className="cat-list-search" aria-label="修改搜索" onClick={onOpenSearch}><CatalogIcon name="search" size={18}/><span>{activeSearch.keyword || (activeSearch.destination ? placeNameZh(activeSearch.destination.name) : '搜索目的地或活动')}</span><span className="cat-list-search-edit">修改搜索</span></button>}
-        {categories.length > 0 && <div className="cat-category-row" aria-label="活动类别"><button className={!selectedCategory ? 'selected' : ''} onClick={() => chooseCategory('')}>全部体验</button>{categories.map(category => <button key={category.category_code} className={selectedCategory === category.category_code ? 'selected' : ''} onClick={() => chooseCategory(category.category_code, category.category_name)}>{categoryNameZh(category.category_name)}</button>)}</div>}
-        {loading ? <div className="cat-product-grid" aria-label="正在加载活动">{Array.from({ length: 6 }, (_, index) => <div className="cat-skeleton-card" key={index}><div className="cat-skeleton-photo"/><div className="cat-skeleton-line"/><div className="cat-skeleton-line short"/><div className="cat-skeleton-line price"/></div>)}</div> : error ? <div className="cat-empty-state"><div className="cat-empty-icon"><CatalogIcon name="globe" size={32}/></div><h3>精彩体验正在路上</h3><p>暂时无法加载活动，请稍后重试。</p><button className="cat-secondary-button" onClick={() => setRetry(value => value + 1)}>重新加载</button></div> : products.length === 0 ? <div className="cat-empty-state"><div className="cat-empty-icon"><CatalogIcon name="search" size={32}/></div><h3>暂时没有找到相关活动</h3><p>试试其他目的地或活动类别，探索更多精彩。</p><button className="cat-secondary-button" onClick={() => { setSelectedCategory(''); const next = { ...activeSearch, keyword: '', category: undefined }; onSearchChange(next); if (submitted) { if (next.destination) onSearch(next); else onHome(); } }}>查看全部体验</button></div> : <div className="cat-product-grid">{products.map(product => <article className="cat-product-card" key={product.product_code}><div className="cat-product-photo"><button className="cat-photo-link" onClick={() => onOpenProduct(product.product_code)} aria-label={`查看 ${product.title}`}><ProductImage product={product}/></button>{product.category_name && <span className="cat-product-category">{categoryNameZh(product.category_name)}</span>}</div><button className="cat-product-info" onClick={() => onOpenProduct(product.product_code)}>{(product.city_name || product.country_name) && <span className="cat-product-location"><CatalogIcon name="pin" size={13}/>{locationLabelZh(product.city_name, product.country_name)}</span>}<h3>{product.title}</h3>{product.subtitle && <p className="cat-product-subtitle">{product.subtitle}</p>}<div className="cat-product-bottom"><div><ProductStartingPrice price={startingPrices[product.product_code]}/></div><span className="cat-product-arrow"><CatalogIcon name="arrow" size={19}/></span></div></button></article>)}</div>}
-        {!loading && Object.values(startingPrices).some(price => price.status === 'error') && <button className="cat-text-button cat-price-retry" onClick={() => setPriceRetry(value => value + 1)}>重新加载报价</button>}
+        {categories.length > 0 && <div className="cat-category-row" aria-label="活动类别"><button aria-pressed={!selectedCategory} className={!selectedCategory ? 'selected' : ''} onClick={() => chooseCategory('')}>全部体验</button>{categories.map(category => <button key={category.category_code} aria-pressed={selectedCategory === category.category_code} className={selectedCategory === category.category_code ? 'selected' : ''} onClick={() => chooseCategory(category.category_code, category.category_name)}>{categoryNameZh(category.category_name)}</button>)}</div>}
+        {loading ? <div className="cat-product-grid" aria-label="正在加载活动">{Array.from({ length: 6 }, (_, index) => <div className="cat-skeleton-card" key={index}><div className="cat-skeleton-photo"/><div className="cat-skeleton-line"/><div className="cat-skeleton-line short"/>{submitted && <div className="cat-skeleton-line price"/>}</div>)}</div> : error ? <div className="cat-empty-state"><div className="cat-empty-icon"><CatalogIcon name="globe" size={32}/></div><h3>精彩体验正在路上</h3><p>暂时无法加载活动，请稍后重试。</p><button className="cat-secondary-button" onClick={() => setRetry(value => value + 1)}>重新加载</button></div> : products.length === 0 ? <div className="cat-empty-state"><div className="cat-empty-icon"><CatalogIcon name="search" size={32}/></div><h3>暂时没有找到相关活动</h3><p>试试其他目的地或活动类别，探索更多精彩。</p><button className="cat-secondary-button" onClick={() => { setSelectedCategory(''); const next = { ...activeSearch, keyword: '', category: undefined }; onSearchChange(next); if (submitted) { if (next.destination) onSearch(next); else onHome(); } }}>查看全部体验</button></div> : <div className="cat-product-grid">{products.map(product => <article className="cat-product-card" key={product.product_code}><div className="cat-product-photo"><button className="cat-photo-link" onClick={() => onOpenProduct(product.product_code)} aria-label={`查看 ${product.title}`}><ProductImage product={product}/></button>{submitted && product.category_name && <span className="cat-product-category">{categoryNameZh(product.category_name)}</span>}</div><button className="cat-product-info" onClick={() => onOpenProduct(product.product_code)}>{submitted && (product.city_name || product.country_name) && <span className="cat-product-location"><CatalogIcon name="pin" size={13}/>{locationLabelZh(product.city_name, product.country_name)}</span>}<h3>{product.title}</h3>{(product.subtitle || (!submitted && (product.city_name || product.country_name))) && <p className="cat-product-subtitle">{product.subtitle || locationLabelZh(product.city_name, product.country_name)}</p>}{submitted && <div className="cat-product-bottom"><div><ProductStartingPrice price={startingPrices[product.product_code]}/></div><span className="cat-product-arrow"><CatalogIcon name="arrow" size={19}/></span></div>}</button></article>)}</div>}
+        {submitted && !loading && Object.values(startingPrices).some(price => price.status === 'error') && <button className="cat-text-button cat-price-retry" onClick={() => setPriceRetry(value => value + 1)}>重新加载报价</button>}
         {!loading && !error && hasNext && <div className="cat-load-more"><button className="cat-secondary-button" onClick={loadMore} disabled={loadingMore}>{loadingMore ? '加载中…' : '探索更多活动'}{!loadingMore && <CatalogIcon name="arrow" size={17}/>}</button></div>}
       </section>
 

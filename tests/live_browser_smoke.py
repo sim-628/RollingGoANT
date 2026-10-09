@@ -120,11 +120,8 @@ def main():
             expect(page.get_by_role("button", name=re.compile(r"收藏"))).to_have_count(0)
             expect(page.get_by_role("button", name=re.compile(r"^出行日期"))).to_have_count(0)
             expect(page.get_by_role("button", name=re.compile(r"^人数"))).to_have_count(0)
-            card = page.locator(".cat-product-card").filter(has=page.get_by_role("heading", name=title, exact=True))
-            expect(card.locator(".cat-product-price")).to_contain_text("起", timeout=90000)
-            starting_price = report["catalog_starting_prices"].get(args.product_code)
-            assert starting_price and starting_price["status"] == "ready", "No real starting price returned for this product"
-            report["catalog_starting_price"] = starting_price
+            expect(page.locator(".cat-product-price, .cat-see-price, .cat-price-retry")).to_have_count(0)
+            assert not any(call["path"] == "/api/catalog/prices" for call in report["api_calls"]), "Homepage recommendations must not request prices"
             save(page, "08-home")
             page.get_by_role("button", name="搜索目的地/活动", exact=True).click()
             expect(page).to_have_url(re.compile(r"/#/search(?:\?|$)"))
@@ -139,6 +136,11 @@ def main():
             expect(page.get_by_role("heading", name="活动列表", exact=True)).to_be_visible()
             expect(page.locator(".cat-hero, .cat-bottom-nav")).to_have_count(0)
             expect(page.get_by_role("heading", name=title, exact=True)).to_be_visible(timeout=30000)
+            card = page.locator(".cat-product-card").filter(has=page.get_by_role("heading", name=title, exact=True))
+            expect(card.locator(".cat-product-price")).to_contain_text("起", timeout=90000)
+            starting_price = report["catalog_starting_prices"].get(args.product_code)
+            assert starting_price and starting_price["status"] == "ready", "No real starting price returned for this product"
+            report["catalog_starting_price"] = starting_price
             list_url = page.url
             report["list_url"] = list_url
             page.reload(wait_until="domcontentloaded")
