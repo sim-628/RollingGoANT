@@ -228,3 +228,50 @@
 .detail-mobile-booking .detail-primary{border-radius:6px}
 .detail-empty h2{font-weight:600}
 .detail-text-button{color:#000947}
+
+/* Date-specific package choices use the confirmed pink, navy and rose palette. */
+.detail-page{--detail-soft:#fff4f8;--detail-rose:#e6063c;background:#fff9fa}
+.detail-booking-title{margin-bottom:20px;gap:0}
+.detail-booking-title h2{display:flex;align-items:center;gap:12px;margin:0;font-size:20px;line-height:28px;color:#000d3e}
+.detail-booking-title h2::before{content:"";width:4px;height:22px;border-radius:4px;background:var(--detail-rose);flex-shrink:0}
+.detail-quick-dates{display:flex;align-items:center;gap:8px;overflow-x:auto;padding:2px 1px 6px;scrollbar-width:none}
+.detail-quick-dates::-webkit-scrollbar{display:none}
+.detail-quick-dates button{display:inline-flex;align-items:center;justify-content:center;gap:6px;flex:0 0 auto;min-height:36px;padding:7px 12px;border:1px solid #e8dfe4;border-radius:22px;background:#fff;color:#263050;font-size:13px;line-height:20px;white-space:nowrap}
+.detail-quick-dates button.selected{border-color:#000d3e;background:var(--detail-soft);color:#000d3e;font-weight:600}
+.detail-quick-dates button:disabled{color:#b7aeb4;border-color:#ede8eb}
+.detail-date-context{margin:6px 0 0;color:#847681;font-size:11px;line-height:18px}
+.detail-calendar-note{margin:3px 0 0;color:#847681;font-size:10px;line-height:17px}
+.detail-calendar{margin-top:14px;background:#fff}
+.detail-calendar[hidden]{display:none}
+.detail-package-heading{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:22px 0 14px}
+.detail-package-heading h3{margin:0;font-size:14px;line-height:22px;color:#817580;font-weight:400}
+.detail-package-heading>span{font-size:11px;color:#9b8e98}
+.detail-package-rail{position:relative;margin:0 -16px 0 0;min-width:0}
+.detail-package-list{display:flex;flex-direction:row;align-items:stretch;gap:14px;overflow-x:auto;scroll-snap-type:x proximity;scrollbar-width:none;padding:1px 65px 3px 0}
+.detail-package-list::-webkit-scrollbar{display:none}
+.detail-package-card,.detail-package-card.selected{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:0;flex:0 0 222px;width:222px;min-height:150px;padding:15px 16px;border:1px solid #d8ced6;border-radius:12px;background:#fff;color:#000d3e;scroll-snap-align:start}
+.detail-package-card.selected{border:2px solid #000d3e;padding:14px 15px;background:var(--detail-soft)}
+.detail-package-card:hover{border-color:#000d3e}
+.detail-package-card strong{font-size:15px;line-height:22px;font-weight:600;overflow-wrap:anywhere;padding-right:14px;margin-bottom:18px}
+.detail-package-card .detail-package-price{display:block;margin-top:auto;color:var(--detail-rose);font-size:19px;line-height:26px;font-weight:600;overflow-wrap:anywhere}
+.detail-package-card .detail-package-price.is-unavailable{font-size:12px;line-height:18px;color:#8d7d86;font-weight:400}
+.detail-package-card .detail-package-unit{display:block;margin:5px 0 0;color:#857680;font-size:10px;line-height:16px;overflow-wrap:anywhere}
+.detail-package-selected{position:absolute;right:8px;top:6px;display:flex;align-items:center;gap:2px;color:#000d3e;font-size:9px;line-height:14px}
+.detail-expand-packages{position:absolute;right:0;top:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;width:50px;border:0;background:linear-gradient(90deg,#ffffffc9,#fff 45%);color:#000d3e;box-shadow:-6px 0 15px #30202507;font-size:10px;padding:0}
+.detail-expand-packages svg{transform:rotate(90deg)}
+.detail-package-rail.is-expanded{margin-right:0;padding-right:0}
+.detail-package-list.is-expanded{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));overflow:visible;padding-right:0;gap:10px}
+.detail-package-list.is-expanded .detail-package-card{width:100%;min-width:0;min-height:145px;flex-basis:auto;padding-left:12px;padding-right:12px}
+.detail-package-rail.is-expanded .detail-expand-packages{position:static;width:100%;height:34px;flex-direction:row;background:none;box-shadow:none;margin-top:6px}
+.detail-package-rail.is-expanded .detail-expand-packages svg{transform:rotate(-90deg)}
+.detail-package-description{position:relative;margin-top:22px;padding:18px 16px;background:#fff9fa;border-radius:10px;color:#263050}
+.detail-package-description::before{content:"";position:absolute;top:-9px;left:30px;border-left:10px solid transparent;border-right:10px solid transparent;border-bottom:10px solid #fff9fa}
+.detail-package-description>h3{font-size:14px;line-height:22px;font-weight:600;margin:0 0 12px;color:#000d3e}
+.detail-package-description h4{margin:16px 0 6px;color:#263050;font-size:12px;line-height:20px;font-weight:600}
+.detail-package-description .detail-rich-text{color:#625763;font-size:12px;line-height:21px}
+.detail-package-more{display:flex;align-items:center;gap:4px;margin-top:14px;padding:0;border:0;background:transparent;color:#000d3e;font-size:12px;line-height:20px;font-weight:600;text-decoration:underline;text-underline-offset:3px}
+.detail-package-more[aria-expanded=true] svg{transform:rotate(-90deg)}
+.detail-package-price-retry{font-size:12px;margin-top:8px;padding-left:0}
+.detail-inline-error{background:#fff0f5;color:#a92b51}
+.detail-inline-error button{color:#a92b51}
+@media(max-width:360px){.detail-quick-dates{gap:6px}.detail-quick-dates button{font-size:12px;padding:6px 10px}.detail-package-card,.detail-package-card.selected{flex-basis:210px;width:210px}.detail-package-list.is-expanded{grid-template-columns:1fr}}

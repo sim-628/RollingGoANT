@@ -117,6 +117,7 @@ def main():
             screenshot(page, "03-product")
             product_image = page.locator(".detail-hero-image")
             report["product_image_natural_width"] = product_image.evaluate("node => node.naturalWidth") if product_image.count() else 0
+            page.get_by_role("button", name="所有日期", exact=True).click()
             bookable = page.locator(".detail-calendar-day:not([disabled])")
             assert bookable.count() > 0, "The real product has no bookable date"
             bookable.first.click()

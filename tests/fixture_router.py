@@ -156,12 +156,21 @@ class FixtureRouter:
                                   "basis": "adult_or_general_unit"})
             self.fulfill(route, {"success": True, "data": {"prices": summaries}})
         elif path == "/api/catalog/skus/calendar":
-            first = max(date.fromisoformat(params["start_date"][0][:10]), date.today())
-            days = [first + timedelta(days=offset) for offset in range(3)]
-            self.calendar_days = [day.isoformat() for day in days]
+            requested_start = date.fromisoformat(params["start_date"][0][:10])
+            requested_end = date.fromisoformat(params["end_date"][0][:10])
+            first = max(requested_start, date.today())
+            days = [first + timedelta(days=offset) for offset in range(3)
+                    if first + timedelta(days=offset) <= requested_end]
+            # Package cards request one day; they must not replace the full
+            # calendar's sold-out / higher-price dates used by booking checks.
+            if requested_start != requested_end:
+                self.calendar_days = [day.isoformat() for day in days]
+            price_days = self.calendar_days or [(first + timedelta(days=offset)).isoformat() for offset in range(3)]
             sku = deepcopy(EXAMPLES["calendar"]["data"][0])
             sku["calendars"] = []
-            for day, price, stock in zip(days, ["79.00", "79.00", "85.00"], [9999, 0, 5000]):
+            for day in days:
+                index = price_days.index(day.isoformat()) if day.isoformat() in price_days else 0
+                price, stock = ["79.00", "79.00", "85.00"][index], [9999, 0, 5000][index]
                 month = day.strftime("%Y-%m")
                 target = next((entry for entry in sku["calendars"] if entry["month"] == month), None)
                 if target is None:
@@ -175,7 +184,7 @@ class FixtureRouter:
             response = deepcopy(EXAMPLES["availability"])
             response["data"]["items"] = []
             for item in payload:
-                calendar_price = "85.00" if self.calendar_days and item["start_time"][:10] == self.calendar_days[2] else "79.00"
+                calendar_price = "85.00" if len(self.calendar_days) > 2 and item["start_time"][:10] == self.calendar_days[2] else "79.00"
                 for line in item["sku_list"]:
                     price = float(line.get("price", calendar_price))
                     # A price-less checkout refresh gets the new live price;

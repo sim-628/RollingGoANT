@@ -132,10 +132,10 @@ def test_chinese_labels_and_committed_destination(browser, origin):
     categories = [{"category_code": "20101", "category_name": "Theme Parks"},
                   {"category_code": "20102", "category_name": "Cruise"}]
     with mobile_page(browser, origin, categories=categories, cities=cities) as (page, router):
-        expect(page.locator(".cat-product-location")).to_have_text("东京 · 日本")
-        expect(page.locator(".cat-product-category")).to_have_text("主题乐园")
         expect(page.get_by_role("button", name="邮轮", exact=True)).to_be_visible()
         search_destination(page, router)
+        expect(page.locator(".cat-product-location")).to_have_text("东京 · 日本")
+        expect(page.locator(".cat-product-category")).to_have_text("主题乐园")
         page.get_by_role("button", name="修改搜索", exact=True).click()
         expect(page).to_have_url(re.compile(r"/#/search(?:\?|$)"))
         search_box(page).fill("京都")
@@ -298,7 +298,7 @@ def test_catalog_starting_price_and_detail_without_favorites(browser, origin):
         expect(page.locator(".detail-calendar-note")).to_contain_text("USD")
         assert router.calendar_days, "The detail screen did not request an API calendar"
         expect(page.get_by_role("button", name=re.compile(r"收藏"))).to_have_count(0)
-        expect(page.get_by_role("heading", name="选择日期", exact=True)).to_be_visible()
+        expect(page.get_by_role("button", name="所有日期", exact=True)).to_be_visible()
         expect(page.get_by_role("heading", name="选择数量", exact=True)).to_be_visible()
 
 
@@ -314,9 +314,10 @@ def test_api_failure_can_recover(browser, origin):
 def go_to_booking(page, router):
     open_detail(page, router)
     screenshot(page, "04-product-overview-official-fixture")
-    sold_out = page.get_by_role("button", name=re.compile(f"^{router.calendar_days[1]}，"))
+    page.get_by_role("button", name="所有日期", exact=True).click()
+    sold_out = page.locator(".detail-calendar").get_by_role("button", name=re.compile(f"^{router.calendar_days[1]}，"))
     expect(sold_out).to_be_disabled()
-    bookable = page.get_by_role("button", name=re.compile(f"^{router.calendar_days[2]}，"))
+    bookable = page.locator(".detail-calendar").get_by_role("button", name=re.compile(f"^{router.calendar_days[2]}，"))
     expect(bookable).to_be_enabled()
     expect(bookable).to_have_attribute("aria-label", re.compile(r"85"))
     bookable.click()
@@ -449,7 +450,8 @@ def test_validation_quote_requires_confirmation(browser, origin):
 def test_empty_unit_rules_still_send_each_traveller(browser, origin):
     with mobile_page(browser, origin, empty_unit_rules=True) as (page, router):
         open_detail(page, router)
-        page.get_by_role("button", name=re.compile(f"^{router.calendar_days[2]}，")).click()
+        page.get_by_role("button", name="所有日期", exact=True).click()
+        page.locator(".detail-calendar").get_by_role("button", name=re.compile(f"^{router.calendar_days[2]}，")).click()
         page.get_by_role("button", name="增加Adult数量", exact=True).click()
         expect(page.locator(".detail-mobile-booking strong")).to_contain_text("170")
         page.locator(".detail-mobile-booking").get_by_role("button", name="立即预订", exact=True).click()

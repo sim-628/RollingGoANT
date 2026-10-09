@@ -166,6 +166,7 @@ def main():
             page.get_by_role("button", name=f"查看 {title}", exact=True).click()
             expect(page.locator(".detail-calendar-note")).to_contain_text("USD", timeout=30000)
             save(page, "10-product")
+            page.get_by_role("button", name="所有日期", exact=True).click()
             available = page.locator(".detail-calendar-day:not([disabled])")
             assert available.count() > 0, "No real bookable date returned for this product"
             available.first.click()
