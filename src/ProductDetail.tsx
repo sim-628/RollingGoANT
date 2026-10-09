@@ -340,8 +340,8 @@ export default function ProductDetail({ productCode, search, onBack, onBook }: {
   const mainCalendar = calendars.find(item => item.sku_code === mainSku?.sku_code);
   const referenceRow = mainCalendar?.calendars?.flatMap(group => group.dates || []).find(item => item.date.slice(0, 10) === date);
   const hasCalendarReference = bookable(referenceRow, mainCalendar?.publish_status);
-  const referencePrice = hasCalendarReference ? referenceRow!.selling_price : hasProductPrice ? product!.price : null;
-  const referenceCurrency = hasCalendarReference ? mainCalendar?.currency : product?.currency;
+  const referencePrice = hasCalendarReference ? referenceRow!.selling_price : null;
+  const referenceCurrency = mainCalendar?.currency;
   const apiLocation = plainText(product?.location);
   const locationIsCoordinates = /^-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?$/.test(apiLocation);
   const cityName = plainText(product?.city_info?.[0]?.city_name) || search.destination?.name;
@@ -355,14 +355,18 @@ export default function ProductDetail({ productCode, search, onBack, onBook }: {
   });
   const firstDay = (new Date(`${month}-01T12:00:00Z`).getUTCDay() + 6) % 7;
   const sections = sectionViews(product?.sections);
-  const quickFacts = sections.filter(section => section.isFact);
+  const quickFacts = sections.filter(section => section.isFact).map(section => {
+    const content = section.content.replace(/^\s*[-*•]\s+/gm, '').trim();
+    const prefix = [`${section.title}：`, `${section.title}:`].find(value => content.startsWith(value));
+    const value = (prefix ? content.slice(prefix.length) : content).trim().replace(/\s*\n+\s*/g, ' · ');
+    return { ...section, value, isDuration: /活动时长|活动时间|duration/i.test(section.title) || /duration/i.test(section.refFieldTag) };
+  }).sort((a, b) => Number(a.isDuration) - Number(b.isDuration));
   const highlightSections = sections.filter(section => section.refFieldTag === 'summary' || /^(活动亮点|行程亮点|highlights?)$/i.test(section.title));
   const highlightItems = highlightSections.flatMap(section => section.content.split(/\n+/).map(line => line.trim().replace(/^[-*•]\s+/, '')).filter(Boolean));
   const hasMoreHighlights = highlightItems.length > 1 || (highlightItems[0]?.length || 0) > 50;
   const contentSections = sections.filter(section => !section.isFact && !highlightSections.includes(section));
   const packageSections = sectionViews(selectedPackage?.sections);
-  const hasMorePackageDescription = packageSections.length > 2 || packageSections.slice(0, 2).some(section => section.content.length > 160);
-  const visiblePackageSections = packageDescriptionExpanded ? packageSections : packageSections.slice(0, 2);
+  const hasMorePackageDescription = packageSections.length > 1 || packageSections.some(section => section.content.length > 100);
   const quickDates = [...new Set((mainCalendar ? [mainCalendar] : calendars).flatMap(sku => (sku.calendars || []).flatMap(group => (group.dates || []).filter(row => bookable(row, sku.publish_status)).map(row => row.date.slice(0, 10)))))].filter(value => value >= minimumDate).sort().slice(0, 3);
 
   function chooseDate(value: string) {
@@ -415,12 +419,11 @@ export default function ProductDetail({ productCode, search, onBack, onBook }: {
     <div className="detail-main-grid">
       <div className="detail-overview">
         <section className="detail-heading">
-          <div className="detail-eyebrow">{categoryNameZh(plainText(product.category_info?.leaf_category_name) || plainText(product.category_info?.sub_category_name))}</div>
+          <div className="detail-eyebrow">{locationLabel && <><span>{locationLabel}</span><span aria-hidden="true">·</span></>}<span>{categoryNameZh(plainText(product.category_info?.leaf_category_name) || plainText(product.category_info?.sub_category_name))}</span></div>
           <h1>{product.title}</h1>
           {product.subtitle && <p className="detail-subtitle">{plainText(product.subtitle)}</p>}
-          {locationLabel && <div className="detail-location"><Icon name="pin" size={16} /><span>{locationLabel}</span></div>}
-          <div className="detail-top-price">{referencePrice != null && <><strong>{money(referencePrice, referenceCurrency)}</strong><span>{hasCalendarReference && mainSku ? `${mainSku.title}单价` : '参考价'}</span></>}</div>
-          {quickFacts.length > 0 && <div className="detail-quick-facts">{quickFacts.map(section => <div key={section.key}><span>{section.title}</span><strong>{section.content.startsWith(`${section.title}：`) ? section.content.slice(section.title.length + 1).trim() : section.content}</strong></div>)}</div>}
+          <div className="detail-top-price">{referencePrice != null && referenceCurrency ? <><strong>{money(referencePrice, referenceCurrency)}</strong><span>起</span></> : <span>{calendarLoading ? '查询价格中…' : '价格待确认'}</span>}</div>
+          {quickFacts.length > 0 && <div className="detail-quick-facts">{quickFacts.map(section => section.isDuration ? <div className="detail-fact-duration" key={section.key}><span className="detail-fact-tag">活动时长：{section.value}</span></div> : <span className="detail-fact-tag" key={section.key}>{section.value}</span>)}</div>}
           {highlightItems.length > 0 && <section className="detail-highlights" id="ant-highlights" aria-label="活动亮点">
             <div className={`detail-highlights-content ${hasMoreHighlights && !highlightsExpanded ? 'is-collapsed' : ''}`} id="detail-highlights-content"><ul>{highlightItems.map((item, index) => <li key={index}>{item}</li>)}</ul></div>
             {hasMoreHighlights && <button className="detail-highlights-more" aria-expanded={highlightsExpanded} aria-controls="detail-highlights-content" onClick={() => setHighlightsExpanded(value => !value)}>{highlightsExpanded ? '收起亮点' : '查看更多'}<Icon name="next" size={18} /></button>}
@@ -472,7 +475,7 @@ export default function ProductDetail({ productCode, search, onBack, onBook }: {
             {packages.length > 1 && <button className="detail-expand-packages" aria-label={packagesExpanded ? '收起套餐' : '展开全部套餐'} aria-expanded={packagesExpanded} aria-controls="detail-package-options" onClick={() => setPackagesExpanded(value => !value)}><Icon name="next" size={20} />{packagesExpanded && <span>收起</span>}</button>}
           </div>
           {packageQuotes.key === quoteKey && packageQuotes.failedSkus.length > 0 && <button className="detail-package-price-retry detail-text-button" onClick={() => setCalendarReload(value => value + 1)}>重新查询套餐报价</button>}
-          {selectedPackage && <div className="detail-package-description detail-package-inclusions" data-package-code={selectedPackage.package_code}><h3>{selectedPackage.package_name}</h3><div id="detail-package-description-content">{packageSections.length ? visiblePackageSections.map(section => <div key={section.key}><h4>{section.title}</h4><p className="detail-rich-text">{!packageDescriptionExpanded && section.content.length > 160 ? `${section.content.slice(0, 160).trimEnd()}…` : section.content}</p></div>) : <p className="detail-muted">该套餐暂未提供详细说明。</p>}</div>{hasMorePackageDescription && <button className="detail-package-more" aria-expanded={packageDescriptionExpanded} aria-controls="detail-package-description-content" onClick={() => setPackageDescriptionExpanded(value => !value)}>{packageDescriptionExpanded ? '收起详情' : '查看更多'}<Icon name="next" size={14} /></button>}</div>}
+          {selectedPackage && <div className="detail-package-description detail-package-inclusions" data-package-code={selectedPackage.package_code}><h3>{selectedPackage.package_name}</h3><div id="detail-package-description-content" className={hasMorePackageDescription && !packageDescriptionExpanded ? 'is-collapsed' : ''}>{packageSections.length ? packageSections.map(section => <div key={section.key}><h4>{section.title}</h4><p className="detail-rich-text">{section.content}</p></div>) : <p className="detail-muted">该套餐暂未提供详细说明。</p>}</div>{hasMorePackageDescription && <button className="detail-package-more" aria-expanded={packageDescriptionExpanded} aria-controls="detail-package-description-content" onClick={() => setPackageDescriptionExpanded(value => !value)}>{packageDescriptionExpanded ? '收起详情' : '查看更多'}<Icon name="next" size={14} /></button>}</div>}
           {requiresTime && <div className="detail-time-selection"><h3>选择场次</h3>{slots.length ? <div className="detail-time-slots">{slots.map(slot => <button key={slot} className={bookingTime === slot ? 'selected' : ''} disabled={bookingLoading} onClick={() => { setTime(slot); setBookingError(''); }}><Icon name="clock" size={15} />{slot.slice(0, 5)}</button>)}</div> : <p className="detail-unavailable-time">该套餐需要选择场次，目前暂未开放场次预订。你可以选择其他套餐。</p>}</div>}
           <div className="detail-booking-divider" />
           <div className="detail-field-heading"><h3>选择数量</h3>{selectedPackage?.package_min_pax ? <span>至少 {selectedPackage.package_min_pax} 人</span> : <span>按实际参与人数选择</span>}</div>

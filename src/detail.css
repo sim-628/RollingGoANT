@@ -32,10 +32,9 @@
 .detail-top-price strong { font-size: 25px; color: var(--detail-accent); font-weight: 780; }
 .detail-top-price > span { font-size: 13px; color: #6e6a70; }
 .detail-feature { display: inline-flex; gap: 5px; font-size: 12px; color: #22845d; padding: 5px 9px; background: #eef8f2; border-radius: 5px; margin-top: 13px; align-items: center; }
-.detail-quick-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 13px 16px; border-top: 1px solid #f0ecee; padding-top: 16px; margin-top: 18px; }
-.detail-quick-facts > div { min-width: 0; }
-.detail-quick-facts span { display: block; font-size: 10px; color: #a2949d; margin-bottom: 4px; }
-.detail-quick-facts strong { display: block; font-size: 11px; line-height: 1.6; font-weight: 500; color: #69606a; }
+.detail-quick-facts { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; margin-top: 16px; }
+.detail-quick-facts .detail-fact-tag { display: inline-flex; max-width: 100%; padding: 6px 10px; border-radius: 4px; background: #f5f5f5; color: #777; font-size: 13px; font-weight: 400; line-height: 20px; overflow-wrap: anywhere; }
+.detail-fact-duration { display: flex; flex: 0 0 100%; min-width: 0; }
 .detail-section-nav { display: flex; gap: 28px; padding-top: 6px; margin-bottom: 6px; border-bottom: 1px solid #eeecee; }
 .detail-section-nav button { background: #fff; border: 0; border-bottom: 3px solid transparent; color: #66616a; font-size: 14px; font-weight: 650; padding: 13px 0; white-space: nowrap; }
 .detail-section-nav button.active { color: var(--detail-accent); border-bottom-color: var(--detail-accent); }
@@ -203,7 +202,7 @@
 .detail-main-grid{gap:8px}
 .detail-heading{padding:20px 16px 16px}
 .detail-heading h1{font-size:20px;line-height:28px;font-weight:600;letter-spacing:0}
-.detail-eyebrow{font-size:12px;color:var(--detail-muted);line-height:20px}
+.detail-eyebrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px;color:var(--detail-muted);line-height:20px}
 .detail-location,.detail-subtitle{font-size:12px;line-height:20px;color:var(--detail-muted)}
 .detail-top-price strong,.detail-desktop-summary strong,.detail-mobile-booking strong{color:#e90245;font-size:22px;font-weight:600}
 .detail-section-nav button{font-size:14px;font-weight:600}
@@ -265,6 +264,7 @@
 .detail-package-description>h3{font-size:14px;line-height:22px;font-weight:600;margin:0 0 12px;color:#000d3e}
 .detail-package-description h4{margin:16px 0 6px;color:#263050;font-size:12px;line-height:20px;font-weight:600}
 .detail-package-description .detail-rich-text{color:#625763;font-size:12px;line-height:21px}
+#detail-package-description-content.is-collapsed{max-height:190px;overflow:hidden;mask-image:linear-gradient(#000 75%,transparent);-webkit-mask-image:linear-gradient(#000 75%,transparent)}
 .detail-package-more{display:flex;align-items:center;gap:4px;margin-top:14px;padding:0;border:0;background:transparent;color:#000d3e;font-size:12px;line-height:20px;font-weight:600;text-decoration:underline;text-underline-offset:3px}
 .detail-package-more[aria-expanded=true] svg{transform:rotate(-90deg)}
 .detail-package-price-retry{font-size:12px;margin-top:8px;padding-left:0}
