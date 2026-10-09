@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { apiGet, apiPost } from './api';
 import { categoryNameZh, locationLabelZh, placeNameZh } from './localization';
 import type { BookingSelection, PackageData, ProductDetailData, SearchState } from './types';
@@ -46,11 +46,11 @@ type CalendarSku = {
 type Availability = { items: { sku_code: string; available: boolean; selling_price: string; currency: string }[] };
 type PackageQuotes = { key: string; loading: boolean; calendars: CalendarSku[]; failedSkus: string[] };
 
-function Icon({ name, size = 22 }: { name: 'back' | 'next' | 'pin' | 'calendar' | 'check' | 'image' | 'minus' | 'plus' | 'clock'; size?: number }) {
+function Icon({ name, size = 22 }: { name: 'back' | 'next' | 'pin' | 'calendar' | 'check' | 'image' | 'minus' | 'plus' | 'clock' | 'close'; size?: number }) {
   const paths: Record<string, string> = {
     back: 'm14 5-7 7 7 7', next: 'm9 5 7 7-7 7', pin: 'M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 1 1 16 0ZM12 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6',
     calendar: 'M5 5h14a2 2 0 0 1 2 2v13H3V7a2 2 0 0 1 2-2ZM3 10h18M7 3v4M17 3v4M7 14h2M13 14h2M7 17h2',
-    check: 'm5 12 4 4L19 6',
+    check: 'm5 12 4 4L19 6', close: 'm6 6 12 12M18 6 6 18',
     image: 'M3 3h18v18H3V3ZM3 17l6-6 4 4 3-3 5 5M17 7h.01', minus: 'M5 12h14', plus: 'M5 12h14M12 5v14', clock: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM12 7v5l3 2',
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name]} /></svg>;
@@ -211,13 +211,17 @@ export default function ProductDetail({ productCode, search, onBack, onBook }: {
   const [calendarReload, setCalendarReload] = useState(0);
   const [calendarExpanded, setCalendarExpanded] = useState(false);
   const [packagesExpanded, setPackagesExpanded] = useState(false);
-  const [packageDescriptionExpanded, setPackageDescriptionExpanded] = useState(false);
+  const [sheetView, setSheetView] = useState<'booking' | 'details' | null>(null);
   const [packageQuotes, setPackageQuotes] = useState<PackageQuotes>({ key: '', loading: false, calendars: [], failedSkus: [] });
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [time, setTime] = useState('');
   const [bookingError, setBookingError] = useState('');
   const [bookingLoading, setBookingLoading] = useState(false);
   const bookingRef = useRef<HTMLElement>(null);
+  const sheetRef = useRef<HTMLDialogElement>(null);
+  const sheetTrigger = useRef<HTMLElement | null>(null);
+  const detailsFromBooking = useRef(false);
+  const sheetOpen = sheetView !== null;
   const explicitDate = useRef(false);
   const dateRef = useRef(date);
   dateRef.current = date;
@@ -238,7 +242,7 @@ export default function ProductDetail({ productCode, search, onBack, onBook }: {
     const controller = new AbortController();
     setProductLoading(true); setProductError(''); setProduct(null); setSelectedCode('');
     explicitDate.current = false;
-    setDate(''); setCalendarData({ context: '', items: [] }); setCalendarExpanded(false); setPackagesExpanded(false); setHighlightsExpanded(false);
+    setDate(''); setCalendarData({ context: '', items: [] }); setCalendarExpanded(false); setPackagesExpanded(false); setHighlightsExpanded(false); setSheetView(null);
     apiGet<ProductDetailData>(`/api/catalog/products/${encodeURIComponent(productCode)}`, {}, { signal: controller.signal }).then(data => {
       if (!active) return;
       setProduct(data); setSelectedCode(data.package_list?.[0]?.package_code || ''); setImageIndex(0); setFailedImages([]);
@@ -256,12 +260,28 @@ export default function ProductDetail({ productCode, search, onBack, onBook }: {
       initial[sku.sku_code] = Math.min(99, chosen, sku.sku_max_pax && sku.sku_max_pax > 0 ? sku.sku_max_pax : Infinity);
     });
     setCounts(initial);
-    setPackageDescriptionExpanded(false);
     const initialDate = dateRef.current || minimumDate;
     setDate(initialDate); setMonth(initialDate.slice(0, 7)); setTime(''); setBookingError('');
   // The package choice initializes counts once; changing counts must not reset the selection.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCode, product]);
+
+  useEffect(() => {
+    const dialog = sheetRef.current;
+    if (!sheetOpen || !dialog) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    if (!dialog.open) dialog.showModal();
+    return () => {
+      dialog.close();
+      document.body.style.overflow = previousOverflow;
+      if (sheetTrigger.current?.isConnected) sheetTrigger.current.focus();
+    };
+  }, [sheetOpen]);
+
+  useEffect(() => {
+    if (sheetView) sheetRef.current?.querySelector<HTMLButtonElement>('.detail-booking-sheet-header button')?.focus();
+  }, [sheetView]);
 
   useEffect(() => {
     if (!selectedPackage?.sku_list?.length) { setCalendarData({ context: calendarContext, items: [] }); setCalendarLoading(false); return; }
@@ -379,9 +399,30 @@ export default function ProductDetail({ productCode, search, onBack, onBook }: {
     setSelectedCode(value);
   }
 
+  function openSheet(view: 'booking' | 'details') {
+    if (!sheetView) sheetTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    detailsFromBooking.current = view === 'details' && sheetView === 'booking';
+    if (!sheetView && view === 'booking') setCalendarExpanded(false);
+    setSheetView(view);
+  }
+
+  function dismissSheet() {
+    setSheetView(sheetView === 'details' && detailsFromBooking.current ? 'booking' : null);
+  }
+
+  function trapSheetFocus(event: KeyboardEvent<HTMLDialogElement>) {
+    if (event.key !== 'Tab') return;
+    const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])')).filter(element => element.getClientRects().length > 0);
+    const target = event.shiftKey ? controls.at(-1) : controls[0];
+    if (target && (document.activeElement === (event.shiftKey ? controls[0] : controls.at(-1)) || !event.currentTarget.contains(document.activeElement))) {
+      event.preventDefault();
+      target.focus();
+    }
+  }
+
   async function proceed() {
     if (!product || !selectedPackage || calendarLoading || bookingLoading) return;
-    if (selectionError) { setBookingError(selectionError); bookingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+    if (selectionError) { setBookingError(selectionError); sheetRef.current?.querySelector('.detail-sheet-quantity')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
     setBookingLoading(true); setBookingError('');
     try {
       const skus = selectedRows.map(item => ({ sku_code: item.sku.sku_code, title: item.sku.title, count: counts[item.sku.sku_code], price: item.row!.selling_price, currency: item.calendar!.currency }));
@@ -406,6 +447,40 @@ export default function ProductDetail({ productCode, search, onBack, onBook }: {
   function scrollToSection(section: string) {
     setActiveSection(section);
     document.getElementById(section)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function renderDateSelection(calendarId: string) {
+    return <>
+          <div className="detail-quick-dates" aria-label="快捷选择可预订日期">
+            {quickDates.map(value => <button key={value} data-date={value} className={`detail-quick-date ${date === value ? 'selected' : ''}`} aria-label={`选择${value}${value === addDays(destinationToday, 1) ? '，明天' : ''}`} aria-pressed={date === value} disabled={calendarLoading || bookingLoading} onClick={() => chooseDate(value)}>{value === addDays(destinationToday, 1) ? '明天' : `${Number(value.slice(5, 7))}月${Number(value.slice(8))}日`}</button>)}
+            <button className={`detail-all-dates ${calendarExpanded ? 'selected' : ''}`} aria-label="所有日期" aria-expanded={calendarExpanded} aria-controls={calendarId} onClick={() => setCalendarExpanded(value => !value)}><Icon name="calendar" size={16} />所有日期</button>
+          </div>
+          {calendarLoading && <p className="detail-calendar-note" role="status">正在查询可预订日期与价格…</p>}
+          {calendarError && <div className="detail-inline-error" role="alert"><span>{calendarError}</span><button onClick={() => setCalendarReload(value => value + 1)}>重新查询</button></div>}
+          {!calendarLoading && !calendarError && !quickDates.length && <p className="detail-date-context">当前已查询日期暂不可预订，请打开所有日期查看其他月份。</p>}
+          <div className="detail-calendar" id={calendarId} hidden={!calendarExpanded}>
+            <div className="detail-calendar-header"><button className="detail-icon-button" aria-label="上一个月" disabled={month <= minimumDate.slice(0, 7) || bookingLoading} onClick={() => setMonth(value => addMonths(value, -1))}><Icon name="back" size={18} /></button><strong>{Number(month.slice(0, 4))} 年 {Number(month.slice(5))} 月</strong><button className="detail-icon-button" aria-label="下一个月" disabled={bookingLoading} onClick={() => setMonth(value => addMonths(value, 1))}><Icon name="next" size={18} /></button></div>
+            <div className="detail-calendar-weekdays">{['一', '二', '三', '四', '五', '六', '日'].map(day => <span key={day}>{day}</span>)}</div>
+            <div className={`detail-calendar-days ${calendarLoading ? 'is-loading' : ''}`}>{Array.from({ length: firstDay }, (_, index) => <span key={`empty-${index}`} />)}{days.map(day => <button key={day.value} data-date={day.value} className={`detail-calendar-day ${date === day.value && day.available ? 'selected' : ''}`} disabled={calendarLoading || bookingLoading || !day.available} aria-label={`${day.value}${day.available ? `，${day.row ? money(day.row.selling_price, mainCalendar?.currency) : '可预订'}` : '，不可预订'}`} aria-pressed={date === day.value} onClick={() => chooseDate(day.value)}><span>{Number(day.value.slice(-2))}</span><small>{calendarLoading ? '·' : day.available ? day.row && bookable(day.row, mainCalendar?.publish_status) ? Number(day.row.selling_price).toLocaleString('zh-CN', { maximumFractionDigits: 2 }) : '可订' : '—'}</small></button>)}</div>
+            {!calendarLoading && !calendarError && !days.some(day => day.available) && <div className="detail-empty-small">这个月暂时没有可预订日期，试试下个月</div>}
+          </div>
+    </>;
+  }
+
+  function renderQuantitySelection() {
+    return <>
+          {requiresTime && <div className="detail-time-selection"><h3>选择场次</h3>{slots.length ? <div className="detail-time-slots">{slots.map(slot => <button key={slot} className={bookingTime === slot ? 'selected' : ''} disabled={bookingLoading} onClick={() => { setTime(slot); setBookingError(''); }}><Icon name="clock" size={15} />{slot.slice(0, 5)}</button>)}</div> : <p className="detail-unavailable-time">该套餐需要选择场次，目前暂未开放场次预订。你可以选择其他套餐。</p>}</div>}
+          <div className="detail-booking-divider" />
+          <div className="detail-field-heading"><h3>选择数量</h3>{selectedPackage?.package_min_pax ? <span>至少 {selectedPackage.package_min_pax} 人</span> : <span>按实际参与人数选择</span>}</div>
+          <div className="detail-sku-list">{skuRows.map(({ sku, row, calendar, available }) => {
+            const count = counts[sku.sku_code] || 0;
+            const min = sku.required ? Math.max(1, sku.sku_min_pax || 0) : 0;
+            const max = Math.min(99, sku.sku_max_pax && sku.sku_max_pax > 0 ? sku.sku_max_pax : Infinity, row ? Number(row.inventory) : 0);
+            const age = sku.min_age === 0 && sku.max_age === 0 ? '' : sku.min_age != null && sku.max_age != null ? `${sku.min_age}–${sku.max_age} 岁` : sku.min_age != null ? `${sku.min_age} 岁及以上` : sku.max_age != null ? `${sku.max_age} 岁及以下` : '';
+            return <div className={`detail-sku-row ${!available ? 'unavailable' : ''}`} key={sku.sku_code}><div className="detail-sku-info"><h4>{sku.title}{Boolean(sku.required) && <span>必选</span>}</h4>{age && <small>{age}</small>}<strong>{calendarLoading ? '查询价格中…' : available && row ? money(row.selling_price, calendar?.currency) : date ? '此日期暂不可订' : '请先选择日期'}</strong></div><div className="detail-stepper"><button aria-label={`减少${sku.title}数量`} disabled={count <= min || bookingLoading} onClick={() => { setCounts(current => ({ ...current, [sku.sku_code]: Math.max(min, count - 1 < (sku.sku_min_pax || 0) ? 0 : count - 1) })); setBookingError(''); }}><Icon name="minus" size={16} /></button><span aria-live="polite">{count}</span><button aria-label={`增加${sku.title}数量`} disabled={!available || count >= max || calendarLoading || bookingLoading} onClick={() => { setCounts(current => ({ ...current, [sku.sku_code]: Math.min(max, count ? count + 1 : Math.max(1, sku.sku_min_pax || 0)) })); setBookingError(''); }}><Icon name="plus" size={16} /></button></div></div>;
+          })}</div>
+          {bookingError && <div className="detail-inline-error" role="alert"><span>{bookingError}</span><button onClick={() => { setBookingError(''); setCalendarReload(value => value + 1); }}>刷新价格</button></div>}
+    </>;
   }
 
   if (productLoading || !product) return <div className="detail-page"><header className="detail-toolbar"><button className="detail-icon-button" aria-label="返回活动列表" onClick={onBack}><Icon name="back" /></button><span>活动详情</span><span /></header>{productLoading ? <div className="detail-loading"><div className="detail-skeleton detail-skeleton-hero" /><div className="detail-skeleton detail-skeleton-title" /><div className="detail-skeleton detail-skeleton-copy" /><div className="detail-skeleton detail-skeleton-copy" /></div> : <div className="detail-empty"><Icon name="image" size={44} /><h2>暂时无法查看此活动</h2><p>{productError || '活动信息暂不可用'}</p><button className="detail-primary" onClick={() => setReload(value => value + 1)}>重新加载</button><button className="detail-text-button" onClick={onBack}>返回活动列表</button></div>}</div>;
@@ -444,19 +519,7 @@ export default function ProductDetail({ productCode, search, onBack, onBook }: {
       <section className="detail-booking-panel" id="ant-packages" ref={bookingRef}>
         <div className="detail-booking-title"><h2>套餐选项</h2></div>
         {!packages.length ? <div className="detail-empty-small">此活动暂未开放可预订套餐</div> : <>
-          <div className="detail-quick-dates" aria-label="快捷选择可预订日期">
-            {quickDates.map(value => <button key={value} data-date={value} className={`detail-quick-date ${date === value ? 'selected' : ''}`} aria-label={`选择${value}${value === addDays(destinationToday, 1) ? '，明天' : ''}`} aria-pressed={date === value} disabled={calendarLoading || bookingLoading} onClick={() => chooseDate(value)}>{value === addDays(destinationToday, 1) ? '明天' : `${Number(value.slice(5, 7))}月${Number(value.slice(8))}日`}</button>)}
-            <button className={`detail-all-dates ${calendarExpanded ? 'selected' : ''}`} aria-label="所有日期" aria-expanded={calendarExpanded} aria-controls="detail-full-calendar" onClick={() => setCalendarExpanded(value => !value)}><Icon name="calendar" size={16} />所有日期</button>
-          </div>
-          {calendarLoading && <p className="detail-calendar-note" role="status">正在查询可预订日期与价格…</p>}
-          {calendarError && <div className="detail-inline-error" role="alert"><span>{calendarError}</span><button onClick={() => setCalendarReload(value => value + 1)}>重新查询</button></div>}
-          {!calendarLoading && !calendarError && !quickDates.length && <p className="detail-date-context">当前已查询日期暂不可预订，请打开所有日期查看其他月份。</p>}
-          <div className="detail-calendar" id="detail-full-calendar" hidden={!calendarExpanded}>
-            <div className="detail-calendar-header"><button className="detail-icon-button" aria-label="上一个月" disabled={month <= minimumDate.slice(0, 7) || bookingLoading} onClick={() => setMonth(value => addMonths(value, -1))}><Icon name="back" size={18} /></button><strong>{Number(month.slice(0, 4))} 年 {Number(month.slice(5))} 月</strong><button className="detail-icon-button" aria-label="下一个月" disabled={bookingLoading} onClick={() => setMonth(value => addMonths(value, 1))}><Icon name="next" size={18} /></button></div>
-            <div className="detail-calendar-weekdays">{['一', '二', '三', '四', '五', '六', '日'].map(day => <span key={day}>{day}</span>)}</div>
-            <div className={`detail-calendar-days ${calendarLoading ? 'is-loading' : ''}`}>{Array.from({ length: firstDay }, (_, index) => <span key={`empty-${index}`} />)}{days.map(day => <button key={day.value} data-date={day.value} className={`detail-calendar-day ${date === day.value && day.available ? 'selected' : ''}`} disabled={calendarLoading || bookingLoading || !day.available} aria-label={`${day.value}${day.available ? `，${day.row ? money(day.row.selling_price, mainCalendar?.currency) : '可预订'}` : '，不可预订'}`} aria-pressed={date === day.value} onClick={() => chooseDate(day.value)}><span>{Number(day.value.slice(-2))}</span><small>{calendarLoading ? '·' : day.available ? day.row && bookable(day.row, mainCalendar?.publish_status) ? Number(day.row.selling_price).toLocaleString('zh-CN', { maximumFractionDigits: 2 }) : '可订' : '—'}</small></button>)}</div>
-            {!calendarLoading && !calendarError && !days.some(day => day.available) && <div className="detail-empty-small">这个月暂时没有可预订日期，试试下个月</div>}
-          </div>
+          {renderDateSelection('detail-full-calendar')}
           <div className="detail-package-heading"><h3>套餐类型</h3><span>{packages.length} 个套餐</span></div>
           <div className={`detail-package-rail ${packagesExpanded ? 'is-expanded' : ''}`}>
             <div className={`detail-package-list ${packagesExpanded ? 'is-expanded' : ''}`} id="detail-package-options">{representatives.map(({ item, sku }) => {
@@ -475,22 +538,29 @@ export default function ProductDetail({ productCode, search, onBack, onBook }: {
             {packages.length > 1 && <button className="detail-expand-packages" aria-label={packagesExpanded ? '收起套餐' : '展开全部套餐'} aria-expanded={packagesExpanded} aria-controls="detail-package-options" onClick={() => setPackagesExpanded(value => !value)}><Icon name="next" size={20} />{packagesExpanded && <span>收起</span>}</button>}
           </div>
           {packageQuotes.key === quoteKey && packageQuotes.failedSkus.length > 0 && <button className="detail-package-price-retry detail-text-button" onClick={() => setCalendarReload(value => value + 1)}>重新查询套餐报价</button>}
-          {selectedPackage && <div className="detail-package-description detail-package-inclusions" data-package-code={selectedPackage.package_code}><h3>{selectedPackage.package_name}</h3><div id="detail-package-description-content" className={hasMorePackageDescription && !packageDescriptionExpanded ? 'is-collapsed' : ''}>{packageSections.length ? packageSections.map(section => <div key={section.key}><h4>{section.title}</h4><p className="detail-rich-text">{section.content}</p></div>) : <p className="detail-muted">该套餐暂未提供详细说明。</p>}</div>{hasMorePackageDescription && <button className="detail-package-more" aria-expanded={packageDescriptionExpanded} aria-controls="detail-package-description-content" onClick={() => setPackageDescriptionExpanded(value => !value)}>{packageDescriptionExpanded ? '收起详情' : '查看更多'}<Icon name="next" size={14} /></button>}</div>}
-          {requiresTime && <div className="detail-time-selection"><h3>选择场次</h3>{slots.length ? <div className="detail-time-slots">{slots.map(slot => <button key={slot} className={bookingTime === slot ? 'selected' : ''} disabled={bookingLoading} onClick={() => { setTime(slot); setBookingError(''); }}><Icon name="clock" size={15} />{slot.slice(0, 5)}</button>)}</div> : <p className="detail-unavailable-time">该套餐需要选择场次，目前暂未开放场次预订。你可以选择其他套餐。</p>}</div>}
-          <div className="detail-booking-divider" />
-          <div className="detail-field-heading"><h3>选择数量</h3>{selectedPackage?.package_min_pax ? <span>至少 {selectedPackage.package_min_pax} 人</span> : <span>按实际参与人数选择</span>}</div>
-          <div className="detail-sku-list">{skuRows.map(({ sku, row, calendar, available }) => {
-            const count = counts[sku.sku_code] || 0;
-            const min = sku.required ? Math.max(1, sku.sku_min_pax || 0) : 0;
-            const max = Math.min(99, sku.sku_max_pax && sku.sku_max_pax > 0 ? sku.sku_max_pax : Infinity, row ? Number(row.inventory) : 0);
-            const age = sku.min_age === 0 && sku.max_age === 0 ? '' : sku.min_age != null && sku.max_age != null ? `${sku.min_age}–${sku.max_age} 岁` : sku.min_age != null ? `${sku.min_age} 岁及以上` : sku.max_age != null ? `${sku.max_age} 岁及以下` : '';
-            return <div className={`detail-sku-row ${!available ? 'unavailable' : ''}`} key={sku.sku_code}><div className="detail-sku-info"><h4>{sku.title}{Boolean(sku.required) && <span>必选</span>}</h4>{age && <small>{age}</small>}<strong>{calendarLoading ? '查询价格中…' : available && row ? money(row.selling_price, calendar?.currency) : date ? '此日期暂不可订' : '请先选择日期'}</strong></div><div className="detail-stepper"><button aria-label={`减少${sku.title}数量`} disabled={count <= min || bookingLoading} onClick={() => { setCounts(current => ({ ...current, [sku.sku_code]: Math.max(min, count - 1 < (sku.sku_min_pax || 0) ? 0 : count - 1) })); setBookingError(''); }}><Icon name="minus" size={16} /></button><span aria-live="polite">{count}</span><button aria-label={`增加${sku.title}数量`} disabled={!available || count >= max || calendarLoading || bookingLoading} onClick={() => { setCounts(current => ({ ...current, [sku.sku_code]: Math.min(max, count ? count + 1 : Math.max(1, sku.sku_min_pax || 0)) })); setBookingError(''); }}><Icon name="plus" size={16} /></button></div></div>;
-          })}</div>
-          {bookingError && <div className="detail-inline-error" role="alert"><span>{bookingError}</span><button onClick={() => { setBookingError(''); setCalendarReload(value => value + 1); }}>刷新价格</button></div>}
-          <div className="detail-desktop-summary"><div><span>总价</span><strong>{date && selectedRows.length && selectedRows.every(row => row.available) ? money(total, currency) : '选择日期与人数'}</strong></div><button className="detail-primary" onClick={proceed} disabled={calendarLoading || bookingLoading || !selectedPackage || !selectedPackage.sku_list?.length}>{bookingLoading ? '正在确认…' : '立即预订'}</button>{selectionError && <small>{selectionError}</small>}</div>
+          {selectedPackage && <div className="detail-package-description detail-package-inclusions" data-package-code={selectedPackage.package_code}><h3>{selectedPackage.package_name}</h3><div id="detail-package-description-content" className={hasMorePackageDescription ? 'is-collapsed' : ''}>{packageSections.length ? packageSections.map(section => <div key={section.key}><h4>{section.title}</h4><p className="detail-rich-text">{section.content}</p></div>) : <p className="detail-muted">该套餐暂未提供详细说明。</p>}</div><button className="detail-package-more" aria-haspopup="dialog" onClick={() => openSheet('details')}>查看套餐详情<Icon name="next" size={14} /></button></div>}
+          <div className="detail-desktop-summary"><div><span>总价</span><strong>{date && selectedRows.length && selectedRows.every(row => row.available) ? money(total, currency) : '选择日期与人数'}</strong></div><button className="detail-primary" aria-haspopup="dialog" onClick={() => openSheet('booking')} disabled={bookingLoading || !selectedPackage || !selectedPackage.sku_list?.length}>{bookingLoading ? '正在确认…' : '立即预订'}</button>{selectionError && <small>{selectionError}</small>}</div>
         </>}
       </section>
     </div>
-    <footer className="detail-mobile-booking"><div><small>{date && selectedRows.length && selectedRows.every(row => row.available) ? `${date.slice(5).replace('-', '月')}日 · ${totalCount} 人` : hasProductPrice ? '参考价' : '活动价格'}</small><strong>{date && selectedRows.length && selectedRows.every(row => row.available) ? money(total, currency) : hasProductPrice ? money(product.price!, product.currency) : '选择套餐'}</strong></div><button className="detail-primary" onClick={proceed} disabled={calendarLoading || bookingLoading || !packages.length}>{bookingLoading ? '正在确认…' : '立即预订'}</button></footer>
+    <footer className="detail-mobile-booking"><div><small>{date && selectedRows.length && selectedRows.every(row => row.available) ? `${date.slice(5).replace('-', '月')}日 · ${totalCount} 人` : hasProductPrice ? '参考价' : '活动价格'}</small><strong>{date && selectedRows.length && selectedRows.every(row => row.available) ? money(total, currency) : hasProductPrice ? money(product.price!, product.currency) : '选择套餐'}</strong></div><button className="detail-primary" aria-haspopup="dialog" onClick={() => openSheet('booking')} disabled={bookingLoading || !packages.length}>{bookingLoading ? '正在确认…' : '立即预订'}</button></footer>
+    {sheetView && selectedPackage && <dialog className="detail-booking-overlay" ref={sheetRef} aria-labelledby="detail-sheet-title" onKeyDown={trapSheetFocus} onCancel={event => { event.preventDefault(); if (!bookingLoading) dismissSheet(); }} onClick={event => { if (event.target === event.currentTarget && !bookingLoading) dismissSheet(); }}>
+      <div className="detail-booking-sheet">
+        <header className="detail-booking-sheet-header"><button className="detail-icon-button" aria-label={sheetView === 'details' ? detailsFromBooking.current ? '返回预订选项' : '关闭套餐详情' : '关闭预订选项'} disabled={bookingLoading} onClick={dismissSheet}><Icon name={sheetView === 'details' && detailsFromBooking.current ? 'back' : 'close'} /></button><h2 id="detail-sheet-title">{sheetView === 'details' ? '套餐详情' : '预订选项'}</h2><span /></header>
+        <div className="detail-booking-sheet-body">
+          <div className="detail-sheet-package-heading"><h3>{selectedPackage.package_name}</h3>{sheetView === 'booking' && <button className="detail-text-button" onClick={() => openSheet('details')}>详情<Icon name="next" size={16} /></button>}</div>
+          <div className="detail-sheet-attrs">{selectedPackage.package_min_pax != null && selectedPackage.package_min_pax > 0 && <span>最少预订人数：{selectedPackage.package_min_pax} 人</span>}{selectedPackage.package_max_pax != null && selectedPackage.package_max_pax > 0 && selectedPackage.package_max_pax <= 99 && <span>最多 {selectedPackage.package_max_pax} 人</span>}{selectedPackage.instant === 1 && <span>立即确认</span>}</div>
+          {sheetView === 'details' ? <div className="detail-sheet-package-content" data-package-code={selectedPackage.package_code}>
+            {packageSections.length ? packageSections.map(section => <section key={section.key}><h3>{section.title}</h3><p className="detail-rich-text">{section.content}</p></section>) : <p className="detail-muted">该套餐暂未提供详细说明。</p>}
+            {selectedPackage.cancellation_desc && <section><h3>取消政策</h3><p className="detail-rich-text">{plainText(selectedPackage.cancellation_desc)}</p></section>}
+            {selectedPackage.voucher_usage_desc && <section><h3>凭证使用方式</h3><p className="detail-rich-text">{plainText(selectedPackage.voucher_usage_desc)}</p></section>}
+          </div> : <>
+            <section className="detail-sheet-section detail-sheet-date-panel"><div className="detail-sheet-date-title"><h3>请选择参加活动的日期</h3><span>{date ? `${Number(date.slice(5, 7))}月${Number(date.slice(8))}日` : '未选择'}</span></div>{renderDateSelection('detail-sheet-full-calendar')}</section>
+            <section className="detail-sheet-section detail-sheet-quantity">{renderQuantitySelection()}</section>
+          </>}
+        </div>
+        {sheetView === 'booking' && <footer className="detail-booking-sheet-footer"><div><span>总价</span><strong aria-live="polite">{calendarLoading ? '查询价格中…' : date && selectedRows.length && selectedRows.every(row => row.available) ? money(total, currency) : '选择日期与人数'}</strong></div>{!calendarLoading && selectionError && <p className="detail-sheet-selection-note">{selectionError}</p>}<button className="detail-primary" onClick={proceed} disabled={calendarLoading || bookingLoading || !selectedPackage.sku_list?.length}>{bookingLoading ? '正在确认…' : '立即预订'}</button></footer>}
+      </div>
+    </dialog>}
   </div>;
 }

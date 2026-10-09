@@ -158,30 +158,38 @@ def main():
             save(page, "09-catalog")
             page.get_by_role("button", name=f"查看 {title}", exact=True).click()
             expect(page.get_by_role("heading", name=title, exact=True)).to_be_visible(timeout=30000)
-            expect(page.locator(".detail-sku-info strong").first).to_contain_text("US$", timeout=30000)
+            expect(page.locator(".detail-top-price strong")).to_contain_text("US$", timeout=30000)
             expect(page.get_by_role("button", name=re.compile(r"收藏"))).to_have_count(0)
             page.get_by_role("button", name="返回活动列表", exact=True).click()
             expect(page).to_have_url(list_url)
             expect(page.get_by_role("heading", name=title, exact=True)).to_be_visible(timeout=30000)
             page.get_by_role("button", name=f"查看 {title}", exact=True).click()
-            expect(page.locator(".detail-sku-info strong").first).to_contain_text("US$", timeout=30000)
+            expect(page.locator(".detail-top-price strong")).to_contain_text("US$", timeout=30000)
             save(page, "10-product")
-            page.get_by_role("button", name="所有日期", exact=True).click()
-            available = page.locator(".detail-calendar-day:not([disabled])")
+            expect(page.locator(".detail-sku-list, .detail-stepper")).to_have_count(0)
+            availability_before_sheet = sum(call["path"] == "/api/availability-check" for call in report["api_calls"])
+            page.locator(".detail-mobile-booking").get_by_role("button", name="立即预订", exact=True).click()
+            sheet = page.get_by_role("dialog", name="预订选项", exact=True)
+            expect(sheet).to_be_visible()
+            expect(sheet.locator(".detail-sku-info strong").first).to_contain_text("US$", timeout=30000)
+            assert sum(call["path"] == "/api/availability-check" for call in report["api_calls"]) == availability_before_sheet, "Opening the sheet must not check availability"
+            date_panel = sheet.locator(".detail-sheet-date-panel")
+            date_panel.get_by_role("button", name="所有日期", exact=True).click()
+            available = date_panel.locator(".detail-calendar-day:not([disabled])")
             assert available.count() > 0, "No real bookable date returned for this product"
             available.first.click()
-            expect(page.locator(".detail-sku-info strong").first).to_contain_text("US$")
+            expect(sheet.locator(".detail-sku-info strong").first).to_contain_text("US$")
             detail = api_data[f"/api/catalog/products/{args.product_code}"]["data"]
             selected = detail["package_list"][0]
             report["product_reference_price"] = detail.get("price")
-            report["sku_titles"] = page.locator(".detail-sku-row h4").all_text_contents()
+            report["sku_titles"] = sheet.locator(".detail-sku-row h4").all_text_contents()
             required_count = max(1, int(selected.get("package_min_pax") or 0))
-            adult_row = page.locator(".detail-sku-row").first
+            adult_row = sheet.locator(".detail-sku-row").first
             count = int(adult_row.locator(".detail-stepper span").inner_text())
             for _ in range(max(0, required_count - count)):
                 adult_row.get_by_role("button", name=re.compile(r"^增加")).click()
             save(page, "11-calendar")
-            page.locator(".detail-mobile-booking").get_by_role("button", name="立即预订", exact=True).click()
+            sheet.locator(".detail-booking-sheet-footer").get_by_role("button", name="立即预订", exact=True).click()
             expect(page.get_by_role("heading", name="联系人信息", exact=True)).to_be_visible(timeout=30000)
             expect(page.get_by_role("heading", name="预订补充信息", exact=True)).to_be_visible()
             if any(rule.get("key") == "email" and rule.get("required") for rule in selected.get("contact_info", [])):

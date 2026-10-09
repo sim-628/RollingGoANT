@@ -7,6 +7,7 @@ POSTs, so this script cannot create a supplier order or call payment endpoints.
 
 import argparse
 from contextlib import contextmanager
+from copy import deepcopy
 from decimal import Decimal
 from pathlib import Path
 import re
@@ -83,8 +84,16 @@ def open_detail(page, router):
     search_destination(page, router)
     page.get_by_role("button", name=f"查看 {TITLE}", exact=True).click()
     expect(page.get_by_role("heading", name=TITLE, exact=True)).to_be_visible()
-    expect(page.locator(".detail-sku-info strong").first).to_contain_text("US$")
+    expect(page.locator(".detail-top-price strong")).to_contain_text("US$")
     assert router.calendar_days, "The detail screen did not request an API calendar"
+
+
+def open_booking_options(page):
+    page.locator(".detail-mobile-booking").get_by_role("button", name="立即预订", exact=True).click()
+    sheet = page.get_by_role("dialog", name="预订选项", exact=True)
+    expect(sheet).to_be_visible()
+    expect(sheet.locator(".detail-sku-info strong").first).to_contain_text("US$")
+    return sheet
 
 
 def test_search_page_and_simple_destination_search(browser, origin):
@@ -295,11 +304,66 @@ def test_catalog_starting_price_and_detail_without_favorites(browser, origin):
         assert router.calls("/api/catalog/prices")[-1]["params"]["product_codes"] == ["10549"]
         page.get_by_role("button", name=f"查看 {TITLE}", exact=True).click()
         expect(page.get_by_role("heading", name=TITLE, exact=True)).to_be_visible()
-        expect(page.locator(".detail-sku-info strong").first).to_contain_text("US$")
+        expect(page.locator(".detail-top-price strong")).to_contain_text("US$")
         assert router.calendar_days, "The detail screen did not request an API calendar"
         expect(page.get_by_role("button", name=re.compile(r"收藏"))).to_have_count(0)
         expect(page.get_by_role("button", name="所有日期", exact=True)).to_be_visible()
-        expect(page.get_by_role("heading", name="选择数量", exact=True)).to_be_visible()
+        expect(page.locator(".detail-sku-list, .detail-stepper")).to_have_count(0)
+        sheet = open_booking_options(page)
+        expect(sheet.get_by_role("heading", name="选择数量", exact=True)).to_be_visible()
+
+
+def test_booking_sheet_preserves_selection_and_defers_availability(browser, origin):
+    with mobile_page(browser, origin) as (page, router):
+        package_description = "此具体套餐包含一日入园门票及园内步行游览。"
+        def product_with_package_information(route):
+            product = deepcopy(EXAMPLES["product_detail"])
+            product["data"]["package_list"][0]["sections"] = [
+                {"title": "费用包含", "ref_field_tag": "inclusions", "content_plain": package_description}
+            ]
+            router.fulfill(route, product)
+        page.context.route("**/api/catalog/products/10549", product_with_package_information)
+        open_detail(page, router)
+        expect(page.locator(".detail-sku-list, .detail-stepper")).to_have_count(0)
+        assert not router.calls("/api/availability-check"), "Viewing a product must not check availability"
+        trigger = page.locator(".detail-mobile-booking").get_by_role("button", name="立即预订", exact=True)
+        sheet = open_booking_options(page)
+        assert not router.calls("/api/availability-check"), "Opening booking options must not check availability"
+        date_panel = sheet.locator(".detail-sheet-date-panel")
+        date_panel.get_by_role("button", name="所有日期", exact=True).click()
+        calendar = date_panel.locator(".detail-calendar")
+        calendar.get_by_role("button", name=re.compile(f"^{router.calendar_days[2]}，")).click()
+        sheet.get_by_role("button", name="增加Adult数量", exact=True).click()
+        expect(sheet.locator(".detail-stepper span")).to_have_text("2")
+        expect(sheet.locator(".detail-booking-sheet-footer strong")).to_contain_text("170")
+        sheet.locator(".detail-sheet-package-heading").get_by_role("button", name="详情", exact=True).click()
+        details = page.get_by_role("dialog", name="套餐详情", exact=True)
+        expect(details).to_be_visible()
+        expect(details.get_by_text(package_description, exact=True)).to_be_visible()
+        assert not router.calls("/api/availability-check"), "Package details must not check availability"
+        details.get_by_role("button", name="返回预订选项", exact=True).click()
+        sheet = page.get_by_role("dialog", name="预订选项", exact=True)
+        expect(sheet.locator(".detail-stepper span")).to_have_text("2")
+        selected_date = sheet.locator(".detail-sheet-date-panel").locator(
+            f'button.detail-calendar-day[data-date="{router.calendar_days[2]}"]'
+        )
+        expect(selected_date).to_have_attribute("aria-pressed", "true")
+        expect(sheet.locator(".detail-booking-sheet-footer strong")).to_contain_text("170")
+        screenshot(page, "04-booking-sheet-official-fixture")
+        page.keyboard.press("Escape")
+        expect(page.get_by_role("dialog")).to_have_count(0)
+        expect(trigger).to_be_focused()
+        sheet = open_booking_options(page)
+        expect(sheet.locator(".detail-stepper span")).to_have_text("2")
+        expect(sheet.locator(".detail-booking-sheet-footer strong")).to_contain_text("170")
+        assert not router.calls("/api/availability-check"), "Closing and reopening must not check availability"
+        sheet.locator(".detail-booking-sheet-footer").get_by_role("button", name="立即预订", exact=True).click()
+        expect(page.get_by_role("heading", name="联系人信息", exact=True)).to_be_visible()
+        calls = router.calls("/api/availability-check")
+        assert len(calls) == 1, "Only the booking sheet confirmation may check availability"
+        assert calls[0]["body"][0]["sku_list"][0]["count"] == 2
+        assert calls[0]["body"][0]["sku_list"][0]["price"] == "85.00"
+        assert not router.calls("/api/orders/validate") and not router.calls("/api/orders")
 
 
 def test_api_failure_can_recover(browser, origin):
@@ -314,17 +378,19 @@ def test_api_failure_can_recover(browser, origin):
 def go_to_booking(page, router):
     open_detail(page, router)
     screenshot(page, "04-product-overview-official-fixture")
-    page.get_by_role("button", name="所有日期", exact=True).click()
-    sold_out = page.locator(".detail-calendar").get_by_role("button", name=re.compile(f"^{router.calendar_days[1]}，"))
+    sheet = open_booking_options(page)
+    date_panel = sheet.locator(".detail-sheet-date-panel")
+    date_panel.get_by_role("button", name="所有日期", exact=True).click()
+    sold_out = date_panel.locator(".detail-calendar").get_by_role("button", name=re.compile(f"^{router.calendar_days[1]}，"))
     expect(sold_out).to_be_disabled()
-    bookable = page.locator(".detail-calendar").get_by_role("button", name=re.compile(f"^{router.calendar_days[2]}，"))
+    bookable = date_panel.locator(".detail-calendar").get_by_role("button", name=re.compile(f"^{router.calendar_days[2]}，"))
     expect(bookable).to_be_enabled()
     expect(bookable).to_have_attribute("aria-label", re.compile(r"85"))
     bookable.click()
-    expect(page.locator(".detail-sku-info strong")).to_contain_text("85")
-    expect(page.locator(".detail-mobile-booking strong")).to_contain_text("85")
+    expect(sheet.locator(".detail-sku-info strong")).to_contain_text("85")
+    expect(sheet.locator(".detail-booking-sheet-footer strong")).to_contain_text("85")
     screenshot(page, "04-product-detail-official-fixture")
-    page.locator(".detail-mobile-booking").get_by_role("button", name="立即预订", exact=True).click()
+    sheet.locator(".detail-booking-sheet-footer").get_by_role("button", name="立即预订", exact=True).click()
     expect(page.get_by_role("heading", name="联系人信息", exact=True)).to_be_visible()
     availability = router.calls("/api/availability-check")[-1]["body"]
     assert isinstance(availability, list), "Availability request must be a JSON root array"
@@ -450,11 +516,13 @@ def test_validation_quote_requires_confirmation(browser, origin):
 def test_empty_unit_rules_still_send_each_traveller(browser, origin):
     with mobile_page(browser, origin, empty_unit_rules=True) as (page, router):
         open_detail(page, router)
-        page.get_by_role("button", name="所有日期", exact=True).click()
-        page.locator(".detail-calendar").get_by_role("button", name=re.compile(f"^{router.calendar_days[2]}，")).click()
-        page.get_by_role("button", name="增加Adult数量", exact=True).click()
-        expect(page.locator(".detail-mobile-booking strong")).to_contain_text("170")
-        page.locator(".detail-mobile-booking").get_by_role("button", name="立即预订", exact=True).click()
+        sheet = open_booking_options(page)
+        date_panel = sheet.locator(".detail-sheet-date-panel")
+        date_panel.get_by_role("button", name="所有日期", exact=True).click()
+        date_panel.locator(".detail-calendar").get_by_role("button", name=re.compile(f"^{router.calendar_days[2]}，")).click()
+        sheet.get_by_role("button", name="增加Adult数量", exact=True).click()
+        expect(sheet.locator(".detail-booking-sheet-footer strong")).to_contain_text("170")
+        sheet.locator(".detail-booking-sheet-footer").get_by_role("button", name="立即预订", exact=True).click()
         expect(page.get_by_role("heading", name="联系人信息", exact=True)).to_be_visible()
         expect(page.get_by_role("heading", name=re.compile(r"^旅客"))).to_have_count(0)
         fill_booking(page, with_traveller_fields=False)
@@ -473,6 +541,7 @@ TESTS = [test_search_page_and_simple_destination_search,
          test_empty_results_can_clear_committed_keyword,
          test_direct_product_link_returns_home,
          test_catalog_starting_price_and_detail_without_favorites,
+         test_booking_sheet_preserves_selection_and_defers_availability,
          test_api_failure_can_recover,
          test_calendar_dynamic_fields_and_order_draft,
          test_price_increase_requires_confirmation,
