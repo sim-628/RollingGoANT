@@ -119,7 +119,7 @@ function sectionViews(sections: unknown) {
     const item = section as Record<string, unknown>;
     const title = plainText(item.title || item.name || item.section_title || item.heading || (String(item.group_name || '').includes('自由文本') ? item.section_name : item.group_name) || item.section_name);
     const content = textFrom(item);
-    return content ? [{ title: title || '活动信息', content, key: `${String(item.id || item.key || item.ref_field_tag || 'section')}-${index}`, isFact: item.group_type_name === 'icon' }] : [];
+    return content ? [{ title: title || '活动信息', content, key: `${String(item.id || item.key || item.ref_field_tag || 'section')}-${index}`, refFieldTag: String(item.ref_field_tag || ''), isFact: item.group_type_name === 'icon' }] : [];
   });
 }
 function bookable(row?: CalendarDate, published?: number) {
@@ -202,6 +202,7 @@ export default function ProductDetail({ productCode, search, onBack, onBook }: {
   const [imageIndex, setImageIndex] = useState(0);
   const [failedImages, setFailedImages] = useState<string[]>([]);
   const [activeSection, setActiveSection] = useState('ant-packages');
+  const [highlightsExpanded, setHighlightsExpanded] = useState(false);
   const [date, setDate] = useState('');
   const [month, setMonth] = useState(localDate().slice(0, 7));
   const [calendarData, setCalendarData] = useState<{ context: string; items: CalendarSku[] }>({ context: '', items: [] });
@@ -237,7 +238,7 @@ export default function ProductDetail({ productCode, search, onBack, onBook }: {
     const controller = new AbortController();
     setProductLoading(true); setProductError(''); setProduct(null); setSelectedCode('');
     explicitDate.current = false;
-    setDate(''); setCalendarData({ context: '', items: [] }); setCalendarExpanded(false); setPackagesExpanded(false);
+    setDate(''); setCalendarData({ context: '', items: [] }); setCalendarExpanded(false); setPackagesExpanded(false); setHighlightsExpanded(false);
     apiGet<ProductDetailData>(`/api/catalog/products/${encodeURIComponent(productCode)}`, {}, { signal: controller.signal }).then(data => {
       if (!active) return;
       setProduct(data); setSelectedCode(data.package_list?.[0]?.package_code || ''); setImageIndex(0); setFailedImages([]);
@@ -355,7 +356,10 @@ export default function ProductDetail({ productCode, search, onBack, onBook }: {
   const firstDay = (new Date(`${month}-01T12:00:00Z`).getUTCDay() + 6) % 7;
   const sections = sectionViews(product?.sections);
   const quickFacts = sections.filter(section => section.isFact);
-  const contentSections = sections.filter(section => !section.isFact);
+  const highlightSections = sections.filter(section => section.refFieldTag === 'summary' || /^(活动亮点|行程亮点|highlights?)$/i.test(section.title));
+  const highlightItems = highlightSections.flatMap(section => section.content.split(/\n+/).map(line => line.trim().replace(/^[-*•]\s+/, '')).filter(Boolean));
+  const hasMoreHighlights = highlightItems.length > 1 || (highlightItems[0]?.length || 0) > 50;
+  const contentSections = sections.filter(section => !section.isFact && !highlightSections.includes(section));
   const packageSections = sectionViews(selectedPackage?.sections);
   const hasMorePackageDescription = packageSections.length > 2 || packageSections.slice(0, 2).some(section => section.content.length > 160);
   const visiblePackageSections = packageDescriptionExpanded ? packageSections : packageSections.slice(0, 2);
@@ -417,10 +421,14 @@ export default function ProductDetail({ productCode, search, onBack, onBook }: {
           {locationLabel && <div className="detail-location"><Icon name="pin" size={16} /><span>{locationLabel}</span></div>}
           <div className="detail-top-price">{referencePrice != null && <><strong>{money(referencePrice, referenceCurrency)}</strong><span>{hasCalendarReference && mainSku ? `${mainSku.title}单价` : '参考价'}</span></>}</div>
           {quickFacts.length > 0 && <div className="detail-quick-facts">{quickFacts.map(section => <div key={section.key}><span>{section.title}</span><strong>{section.content.startsWith(`${section.title}：`) ? section.content.slice(section.title.length + 1).trim() : section.content}</strong></div>)}</div>}
+          {highlightItems.length > 0 && <section className="detail-highlights" id="ant-highlights" aria-label="活动亮点">
+            <div className={`detail-highlights-content ${hasMoreHighlights && !highlightsExpanded ? 'is-collapsed' : ''}`} id="detail-highlights-content"><ul>{highlightItems.map((item, index) => <li key={index}>{item}</li>)}</ul></div>
+            {hasMoreHighlights && <button className="detail-highlights-more" aria-expanded={highlightsExpanded} aria-controls="detail-highlights-content" onClick={() => setHighlightsExpanded(value => !value)}>{highlightsExpanded ? '收起亮点' : '查看更多'}<Icon name="next" size={18} /></button>}
+          </section>}
         </section>
         <nav className="detail-section-nav" aria-label="活动详情栏目">{[['ant-packages', '选择套餐'], ['ant-introduction', '活动介绍'], ['ant-information', '使用须知']].map(([section, label]) => <button key={section} className={activeSection === section ? 'active' : ''} onClick={() => scrollToSection(section)}>{label}</button>)}</nav>
-        {product.description && <section className="detail-content-card detail-description" id="ant-introduction"><h2>活动亮点</h2><p className="detail-rich-text">{plainText(product.description)}</p></section>}
-        {!product.description && <span id="ant-introduction" />}
+        {product.description && <section className="detail-content-card detail-description" id="ant-introduction"><h2>活动介绍</h2><p className="detail-rich-text">{plainText(product.description)}</p></section>}
+        {!product.description && <span className="detail-introduction-marker" id="ant-introduction" />}
         {contentSections.map(section => <section className="detail-content-card" key={section.key}><h2>{section.title}</h2><p className="detail-rich-text">{section.content}</p></section>)}
         <section className="detail-content-card detail-practical" id="ant-information">
           <h2>使用须知</h2>
@@ -461,7 +469,7 @@ export default function ProductDetail({ productCode, search, onBack, onBook }: {
                 <span className={`detail-package-price ${ready ? '' : 'is-unavailable'}`} data-sku-code={sku?.sku_code} data-quote-status={loading ? 'loading' : failed ? 'error' : ready ? 'ready' : 'unavailable'}>{ready ? money(row!.selling_price, quote!.currency) : status || '价格币种待确认'}</span>
               </button>;
             })}</div>
-            {packages.length > 1 && <button className="detail-expand-packages" aria-label={packagesExpanded ? '收起套餐' : '展开全部套餐'} aria-expanded={packagesExpanded} aria-controls="detail-package-options" onClick={() => setPackagesExpanded(value => !value)}><Icon name="next" size={20} /><span>{packagesExpanded ? '收起' : '全部'}</span></button>}
+            {packages.length > 1 && <button className="detail-expand-packages" aria-label={packagesExpanded ? '收起套餐' : '展开全部套餐'} aria-expanded={packagesExpanded} aria-controls="detail-package-options" onClick={() => setPackagesExpanded(value => !value)}><Icon name="next" size={20} />{packagesExpanded && <span>收起</span>}</button>}
           </div>
           {packageQuotes.key === quoteKey && packageQuotes.failedSkus.length > 0 && <button className="detail-package-price-retry detail-text-button" onClick={() => setCalendarReload(value => value + 1)}>重新查询套餐报价</button>}
           {selectedPackage && <div className="detail-package-description detail-package-inclusions" data-package-code={selectedPackage.package_code}><h3>{selectedPackage.package_name}</h3><div id="detail-package-description-content">{packageSections.length ? visiblePackageSections.map(section => <div key={section.key}><h4>{section.title}</h4><p className="detail-rich-text">{!packageDescriptionExpanded && section.content.length > 160 ? `${section.content.slice(0, 160).trimEnd()}…` : section.content}</p></div>) : <p className="detail-muted">该套餐暂未提供详细说明。</p>}</div>{hasMorePackageDescription && <button className="detail-package-more" aria-expanded={packageDescriptionExpanded} aria-controls="detail-package-description-content" onClick={() => setPackageDescriptionExpanded(value => !value)}>{packageDescriptionExpanded ? '收起详情' : '查看更多'}<Icon name="next" size={14} /></button>}</div>}
