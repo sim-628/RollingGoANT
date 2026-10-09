@@ -83,7 +83,7 @@ def open_detail(page, router):
     search_destination(page, router)
     page.get_by_role("button", name=f"查看 {TITLE}", exact=True).click()
     expect(page.get_by_role("heading", name=TITLE, exact=True)).to_be_visible()
-    expect(page.locator(".detail-calendar-note")).to_contain_text("USD")
+    expect(page.locator(".detail-sku-info strong").first).to_contain_text("US$")
     assert router.calendar_days, "The detail screen did not request an API calendar"
 
 
@@ -295,7 +295,7 @@ def test_catalog_starting_price_and_detail_without_favorites(browser, origin):
         assert router.calls("/api/catalog/prices")[-1]["params"]["product_codes"] == ["10549"]
         page.get_by_role("button", name=f"查看 {TITLE}", exact=True).click()
         expect(page.get_by_role("heading", name=TITLE, exact=True)).to_be_visible()
-        expect(page.locator(".detail-calendar-note")).to_contain_text("USD")
+        expect(page.locator(".detail-sku-info strong").first).to_contain_text("US$")
         assert router.calendar_days, "The detail screen did not request an API calendar"
         expect(page.get_by_role("button", name=re.compile(r"收藏"))).to_have_count(0)
         expect(page.get_by_role("button", name="所有日期", exact=True)).to_be_visible()

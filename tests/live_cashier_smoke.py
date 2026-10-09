@@ -113,7 +113,7 @@ def main():
             screenshot(page, "02-catalog")
             page.get_by_role("button", name=f"查看 {title}", exact=True).click()
             expect(page.get_by_role("heading", name=title, exact=True)).to_be_visible(timeout=30000)
-            expect(page.locator(".detail-calendar-note")).to_contain_text("USD", timeout=30000)
+            expect(page.locator(".detail-sku-info strong").first).to_contain_text("US$", timeout=30000)
             screenshot(page, "03-product")
             product_image = page.locator(".detail-hero-image")
             report["product_image_natural_width"] = product_image.evaluate("node => node.naturalWidth") if product_image.count() else 0

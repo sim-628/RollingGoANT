@@ -70,7 +70,6 @@ export default function App() {
       : path === '/booking' && booking ? <Booking selection={booking} onBack={() => go(`/product/${encodeURIComponent(booking.product.product_code)}`, productOrigin.path)} onComplete={result => { setOrder(result); go('/cashier'); }} />
       : (path === '/cashier' || path === '/confirmation') && order && booking ? <Confirmation booking={booking} order={order} onHome={() => go('/')} />
       : <Catalog key={path} mode={catalogRoute.mode} search={search} activeSearch={activeSearch} onSearchChange={setSearch} onSearch={submitSearch} onOpenSearch={openSearch} onHome={() => go('/')} onOpenProduct={openProduct} />}
-    <div className="desktop-signature" aria-hidden="true"><span>RollingGo <b>ANT</b></span><span>让每一天，都值得出发。</span></div>
   </div></div>;
 }
 
