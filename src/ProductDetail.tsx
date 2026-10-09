@@ -366,7 +366,7 @@ export default function ProductDetail({ productCode, search, onBack, onBook }: {
   const hasMoreHighlights = highlightItems.length > 1 || (highlightItems[0]?.length || 0) > 50;
   const contentSections = sections.filter(section => !section.isFact && !highlightSections.includes(section));
   const packageSections = sectionViews(selectedPackage?.sections);
-  const hasMorePackageDescription = packageSections.length > 1 || packageSections.some(section => section.content.length > 100);
+  const hasMorePackageDescription = packageSections.length > 1 || packageSections.some(section => section.content.length > 100 || section.content.split('\n').length > 5);
   const quickDates = [...new Set((mainCalendar ? [mainCalendar] : calendars).flatMap(sku => (sku.calendars || []).flatMap(group => (group.dates || []).filter(row => bookable(row, sku.publish_status)).map(row => row.date.slice(0, 10)))))].filter(value => value >= minimumDate).sort().slice(0, 3);
 
   function chooseDate(value: string) {
