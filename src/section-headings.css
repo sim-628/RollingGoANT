@@ -1,0 +1,46 @@
+/* Section headings share the rose marker used by the package options title. */
+:is(
+  .cat-section-title > h2,
+  .detail-content-card > h2,
+  .detail-booking-title > h2,
+  .booking-page .section-label > h2
+) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding-left: 0;
+  overflow-wrap: anywhere;
+}
+
+:is(
+  .cat-section-title > h2,
+  .detail-content-card > h2,
+  .detail-booking-title > h2,
+  .booking-page .section-label > h2
+)::before {
+  content: "";
+  display: block;
+  position: static;
+  flex: 0 0 4px;
+  width: 4px;
+  height: 22px;
+  margin: 0;
+  border-radius: 4px;
+  background: #e6063c;
+}
+
+.booking-page .section-label > .section-step,
+.booking-page .section-label > svg {
+  display: none;
+}
+
+/* The homepage's recommendation heading stays plain, as requested. */
+.catalog-home .cat-home-recommendations .cat-section-title > h2 {
+  display: block;
+  gap: 0;
+}
+.catalog-home .cat-home-recommendations .cat-section-title > h2::before {
+  content: none;
+  display: none;
+}

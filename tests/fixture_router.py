@@ -27,12 +27,13 @@ TEST_IMAGE = '''<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600"
 class FixtureRouter:
     """Intercept every browser API call, record the request, and forbid surprises."""
 
-    def __init__(self, origin: str, *, fail_products=False, price_change=False, quote_change_only=False, empty_unit_rules=False):
+    def __init__(self, origin: str, *, fail_products=False, price_change=False, quote_change_only=False, empty_unit_rules=False, category_totals=None):
         self.origin = origin.rstrip("/")
         self.fail_products = fail_products
         self.price_change = price_change
         self.quote_change_only = quote_change_only
         self.empty_unit_rules = empty_unit_rules
+        self.category_totals = dict(category_totals or {})
         self.requests = []
         self.unexpected = []
         self.calendar_days = []
@@ -136,6 +137,15 @@ class FixtureRouter:
                 return
             response = deepcopy(EXAMPLES["products"])
             response["data"].update(total=1, has_next=False)
+            category_code = params.get("category_codes", [""])[0]
+            if params.get("limit") == ["1"] and category_code in self.category_totals:
+                total = self.category_totals[category_code]
+                response["data"].update(total=total, limit=1, has_next=bool(total and total > 1))
+                if total == 0:
+                    response["data"]["products"] = []
+                else:
+                    for product in response["data"]["products"]:
+                        product["category_code"] = category_code
             self.fulfill(route, response)
         elif path == "/api/catalog/prices":
             # This application-owned summary uses the official example's

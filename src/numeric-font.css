@@ -1,0 +1,13 @@
+/* One file, two original weights: Regular 400 / Demibold 600.
+ * Discrete selection: wght < 500 is Regular; >= 500 is Demibold.
+ * Put 'MiSans Numeric' before your existing body font family.
+ */
+
+@font-face {
+  font-family: "MiSans Numeric";
+  src: url("./assets/fonts/MiSans.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  unicode-range: U+0021-0040, U+005B-0060, U+007B-007E, U+00A1-00A5, U+00A7, U+00AB, U+00B0-00B3, U+00B6-00B7, U+00B9, U+00BB-00BF, U+00D7, U+00F7, U+037E, U+0387, U+0E3F, U+2010, U+2013-2016, U+2018-201A, U+201C-201E, U+2020-2022, U+2025-2026, U+2030-2037, U+2039-203C, U+203E-203F, U+2042-2043, U+2047-2049, U+204E, U+2051, U+2055, U+2070, U+2074-2079, U+2080-2089, U+208D-208E, U+20A3-20A4, U+20A8-20A9, U+20AB-20AC, U+20AE, U+20B1, U+20B8-20BA, U+20BD, U+20BF, U+2103, U+2109, U+2153-2154, U+215B-215E, U+2160-2179, U+2180-2182, U+2212, U+2248, U+2260, U+2264-2265, U+2460-2469, U+2474-249B, U+2780-2793, U+3001-3003, U+3007-3011, U+3014-3017, U+301D-301E, U+3021-3029, U+3220-3229, U+FE10-FE19, U+FE30-FE31, U+FE33-FE44, U+FE49-FE52, U+FE54-FE57, U+FE59-FE61, U+FE63, U+FE68-FE6B, U+FF01-FF20, U+FF3B-FF40, U+FF5B-FF5E, U+FFE0-FFE1, U+FFE5;
+}

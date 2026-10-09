@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUpRight, MapPin, Search, Sparkles, Ticket, X } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, Flame, MapPin, Search, Sparkles, Ticket, Trash2, X } from 'lucide-react';
 import { apiGet } from './api';
 import { categoryNameZh, countryNameZh, placeNameZh } from './localization';
 import { categoryChoices, exactCity, matchingCities, popularCities, validActivityCount } from './searchSuggestions';
@@ -10,6 +10,15 @@ import './search.css';
 type Props = { initialSearch: SearchState; onSearch: (next: SearchState) => void; onClose: () => void };
 type CitySuggestions = { cityCode: string; categories: (CategoryChoice & { count: number })[]; failed: boolean };
 const recentKey = 'rollinggo.ant.search.recent.v1';
+const cityPhotos: Record<string, string> = {
+  '巴黎': new URL('./assets/location-paris.png', import.meta.url).href,
+  '曼谷': new URL('./assets/location-bangkok.png', import.meta.url).href,
+  '巴厘岛': new URL('./assets/location-bali.png', import.meta.url).href,
+  '悉尼': new URL('./assets/location-sydney.png', import.meta.url).href,
+};
+function domesticCity(city: Pick<SearchCity, 'country_name'>) {
+  return /china|hong.?kong|maca[ou]|taiwan|中国|香港|澳门|台湾/i.test(city.country_name || '');
+}
 
 function recentCodes(): string[] {
   try {
@@ -19,7 +28,7 @@ function recentCodes(): string[] {
 }
 
 export default function SearchPage({ initialSearch, onSearch, onClose }: Props) {
-  const [query, setQuery] = useState(initialSearch.keyword || (initialSearch.destination ? placeNameZh(initialSearch.destination.name) : ''));
+  const [query, setQuery] = useState(initialSearch.keyword || '');
   const [cities, setCities] = useState<SearchCity[]>([]);
   const [categories, setCategories] = useState<SearchCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,6 +38,8 @@ export default function SearchPage({ initialSearch, onSearch, onClose }: Props) 
   const [recent, setRecent] = useState(recentCodes);
   const [suggestions, setSuggestions] = useState<CitySuggestions[]>([]);
   const [suggestionLoading, setSuggestionLoading] = useState(false);
+  const [region, setRegion] = useState<'domestic' | 'international'>(initialSearch.destination && domesticCity({ country_name: initialSearch.destination.countryName }) ? 'domestic' : 'international');
+  const heading = useRef<HTMLHeadingElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const composing = useRef(false);
   const cache = useRef(new Map<string, { expires: number; value: CitySuggestions }>());
@@ -37,9 +48,31 @@ export default function SearchPage({ initialSearch, onSearch, onClose }: Props) 
   const matchCodes = matches.slice(0, 2).map(city => String(city.city_code)).join(',');
   const hot = useMemo(() => popularCities(cities), [cities]);
   const recentCities = recent.flatMap(code => { const city = cities.find(item => String(item.city_code) === code); return city ? [city] : []; });
+  const regionCities = useMemo(() => cities.filter(city => domesticCity(city) === (region === 'domestic')), [cities, region]);
+  const featuredCities = useMemo(() => Object.keys(cityPhotos).flatMap(name => {
+    const city = regionCities.find(item => placeNameZh(item.city_name) === name);
+    return city ? [city] : [];
+  }), [regionCities]);
+  const cityChips = useMemo(() => {
+    const seen = new Set(featuredCities.map(city => String(city.city_code)));
+    const result: SearchCity[] = [];
+    for (const city of [...hot.filter(city => regionCities.includes(city)), ...regionCities]) {
+      const code = String(city.city_code);
+      if (seen.has(code)) continue;
+      seen.add(code); result.push(city);
+      if (result.length === 12) break;
+    }
+    return result;
+  }, [hot, regionCities, featuredCities]);
 
   useEffect(() => {
-    input.current?.focus();
+    heading.current?.focus();
+    const escape = (event: globalThis.KeyboardEvent) => { if (event.key === 'Escape' && !event.isComposing) { event.preventDefault(); onClose(); } };
+    window.addEventListener('keydown', escape);
+    return () => window.removeEventListener('keydown', escape);
+  }, [onClose]);
+
+  useEffect(() => {
     const controller = new AbortController();
     setLoading(true); setFailed(false); setCategoryFailed(false);
     apiGet<SearchCity[]>('/api/catalog/cities', {}, { signal: controller.signal })
@@ -102,20 +135,26 @@ export default function SearchPage({ initialSearch, onSearch, onClose }: Props) 
   }
 
   return <div className="ant-search-page">
-    <header className="ant-search-brand"><span className="ant-search-logo" role="img" aria-label="RollingGo"/><span className="ant-search-brand-label">搜索</span></header>
+    <header className="ant-search-header"><button className="ant-search-close" aria-label="关闭地点选择" onClick={onClose}><ArrowLeft size={24} /></button><h1 ref={heading} tabIndex={-1}>选择目的地</h1></header>
     <div className="ant-search-bar-row">
-      <button className="ant-search-close" aria-label="关闭搜索" onClick={onClose}><X size={23} /></button>
       <form className="ant-search-form" role="search" onSubmit={event => { event.preventDefault(); submit(); }}>
-        <input ref={input} aria-label="搜索目的地/活动" placeholder="想要搜什么" autoComplete="off" maxLength={128} value={query} onChange={event => setQuery(event.target.value)} onCompositionStart={() => { composing.current = true; }} onCompositionEnd={() => { composing.current = false; }} onKeyDown={event => { if (composing.current || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) { if (event.key === 'Enter') event.preventDefault(); return; } if (event.key === 'Escape') onClose(); }} />
-        {query && <button type="button" className="ant-search-clear" aria-label="清除搜索" onClick={() => { setQuery(''); input.current?.focus(); }}><X size={14} /></button>}
         <button type="submit" className="ant-search-submit" aria-label="提交搜索" disabled={!trimmed}><Search size={19} /></button>
+        <input ref={input} aria-label="搜索目的地/活动" placeholder="搜索城市/国家/地区" autoComplete="off" maxLength={128} value={query} onChange={event => setQuery(event.target.value)} onCompositionStart={() => { composing.current = true; }} onCompositionEnd={() => { composing.current = false; }} onKeyDown={event => { if (composing.current || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) { if (event.key === 'Enter') event.preventDefault(); } }} />
+        {query && <button type="button" className="ant-search-clear" aria-label="清除搜索" onClick={() => { setQuery(''); input.current?.focus(); }}><X size={14} /></button>}
       </form>
     </div>
     <main className="ant-search-main">
       {!trimmed ? <>
-        {initialSearch.destination && <button className="ant-search-current" onClick={() => onSearch({ destination: initialSearch.destination, keyword: '' })}><MapPin size={17} />{placeNameZh(initialSearch.destination.name)}</button>}
-        {recentCities.length > 0 && <section className="ant-search-chip-section"><div className="ant-search-section-heading"><h2>最近搜索</h2><button onClick={() => { setRecent([]); try { localStorage.removeItem(recentKey); } catch { /* Optional local history. */ } }}>清空</button></div><div className="ant-search-chips">{recentCities.map(city => <button key={city.city_code} data-city-code={city.city_code} onClick={() => choose(city)}>{placeNameZh(city.city_name)}</button>)}</div></section>}
-        <section className="ant-search-chip-section"><h2>热门目的地</h2><div className="ant-search-chips">{hot.map(city => <button key={city.city_code} data-city-code={city.city_code} onClick={() => choose(city)}>{placeNameZh(city.city_name)}</button>)}</div></section>
+        <div className="ant-search-summary">
+        {initialSearch.destination && <section className="ant-search-chip-section ant-search-current-section"><h2>当前选择</h2><button className="ant-search-current" onClick={() => onSearch({ destination: initialSearch.destination, keyword: '' })}><MapPin size={17} fill="currentColor" />{placeNameZh(initialSearch.destination.name)}</button></section>}
+        <section className="ant-search-chip-section ant-search-history"><div className="ant-search-section-heading"><h2>历史选择</h2><button aria-label="清空历史选择" disabled={!recent.length} onClick={() => { setRecent([]); try { localStorage.removeItem(recentKey); } catch { /* Optional local history. */ } }}><Trash2 size={18}/></button></div>{recentCities.length ? <div className="ant-search-chips">{recentCities.map(city => <button key={city.city_code} data-city-code={city.city_code} onClick={() => choose(city)}>{placeNameZh(city.city_name)}</button>)}</div> : <p className="ant-search-hint">暂无历史选择</p>}</section>
+        </div>
+        <div className="ant-search-region-tabs" role="tablist" aria-label="目的地区域"><button role="tab" aria-selected={region === 'domestic'} onClick={() => setRegion('domestic')}>国内·港澳台</button><button role="tab" aria-selected={region === 'international'} onClick={() => setRegion('international')}>国际</button></div>
+        <section className="ant-search-hot-cities"><h2><Flame size={20} fill="currentColor" aria-hidden="true"/>热门城市</h2>
+          {featuredCities.length > 0 && <div className="ant-search-city-cards">{featuredCities.map(city => <button key={city.city_code} data-city-code={city.city_code} onClick={() => choose(city)}><img src={cityPhotos[placeNameZh(city.city_name)]} alt=""/><span>{placeNameZh(city.city_name)}</span></button>)}</div>}
+          <div className="ant-search-chips ant-search-city-grid">{cityChips.map(city => <button key={city.city_code} data-city-code={city.city_code} onClick={() => choose(city)}>{placeNameZh(city.city_name)}</button>)}</div>
+          {!loading && !failed && !regionCities.length && <p className="ant-search-hint">该地区暂无可选目的地，可搜索其他城市或活动。</p>}
+        </section>
       </> : <div className="ant-search-results">
         {matches.map(city => <div key={city.city_code} className="ant-search-city-group">
           <button className="ant-search-suggestion ant-search-city" data-city-code={city.city_code} onClick={() => choose(city)}><MapPin className="ant-search-place-icon" size={23}/><span><strong>{placeNameZh(city.city_name)}</strong><small>{countryNameZh(city.country_name)}</small></span><ArrowUpRight size={16} className="ant-search-row-arrow" /></button>
@@ -126,8 +165,8 @@ export default function SearchPage({ initialSearch, onSearch, onClose }: Props) 
         {suggestionLoading && <p className="ant-search-status" role="status"><Sparkles size={15}/>正在查找当地体验…</p>}
         {(suggestions.some(group => group.failed) || categoryFailed && matches.length > 0) && <p className="ant-search-status">活动分类暂时无法加载。<button onClick={() => setRetry(value => value + 1)}>重试</button></p>}
       </div>}
-      {loading && <p className="ant-search-status" role="status">正在加载目的地…</p>}
-      {failed && <div className="ant-search-error" role="alert"><p>目的地暂时无法加载，请稍后重试。</p><button onClick={() => setRetry(value => value + 1)}>重新加载</button></div>}
+      {loading && <p className="ant-search-status ant-search-page-status" role="status">正在加载目的地…</p>}
+      {failed && <div className="ant-search-error ant-search-page-status" role="alert"><p>目的地暂时无法加载，请稍后重试。</p><button onClick={() => setRetry(value => value + 1)}>重新加载</button></div>}
     </main>
   </div>;
 }

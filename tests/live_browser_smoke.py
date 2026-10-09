@@ -13,7 +13,7 @@ import json
 import os
 from pathlib import Path
 import re
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 
 from playwright.sync_api import expect, sync_playwright
 
@@ -33,6 +33,7 @@ def main():
     report = {"mode": "live-read-only", "api_calls": [], "api_errors": [], "blocked": [],
               "failed_images": [], "console_errors": [], "page_errors": [], "catalog_starting_prices": {}}
     api_data = {}
+    catalog_products = {}
 
     def guard(route):
         request = route.request
@@ -60,6 +61,9 @@ def main():
         try:
             payload = response.json()
             api_data[parsed.path] = payload
+            if parsed.path == "/api/catalog/products" and payload.get("success"):
+                catalog_products.update({str(product["product_code"]): product
+                                         for product in payload.get("data", {}).get("products", [])})
             if parsed.path == "/api/catalog/prices" and payload.get("success"):
                 for price in payload.get("data", {}).get("prices", []):
                     report["catalog_starting_prices"][price["product_code"]] = price
@@ -103,7 +107,9 @@ def main():
             expect(page.get_by_role("heading", name="热门推荐", exact=True)).to_be_visible()
             expect(page.get_by_role("tab", name="酒店", exact=True).locator("svg")).to_have_count(0)
             expect(page.get_by_role("tab", name="机票", exact=True).locator("svg")).to_have_count(0)
-            expect(page.get_by_role("tab", name="活动", exact=True).locator("svg")).to_have_count(0)
+            activity_tab = page.get_by_role("tab", name="活动", exact=True)
+            expect(activity_tab.locator(".cat-service-active-surface")).to_have_attribute("aria-hidden", "true")
+            expect(activity_tab.locator("span")).to_have_text("活动")
             expect(page.get_by_text("必填", exact=True)).to_have_count(0)
             expect(page.locator(".cat-destinations, .cat-result-count, .cat-bottom-nav")).to_have_count(0)
             expect(page.locator(".cat-category-row button").first).to_be_visible(timeout=30000)
@@ -111,8 +117,8 @@ def main():
                 assert not re.search(r"[A-Za-z]", option), f"Category is not Chinese: {option}"
             for location in page.locator(".cat-product-location").all_text_contents():
                 assert not re.search(r"[A-Za-z]", location), f"Location is not Chinese: {location}"
-            products = api_data["/api/catalog/products"]["data"]["products"]
-            product = next(item for item in products if str(item["product_code"]) == args.product_code)
+            product = catalog_products.get(args.product_code)
+            assert product, "The real homepage catalogue did not include the selected product"
             title = product["title"]
             report["product_code"] = args.product_code
             report["product_title"] = title
@@ -134,6 +140,9 @@ def main():
             city_button.click()
             expect(page).to_have_url(re.compile(r"/#/activities\?city="))
             expect(page.get_by_role("heading", name="活动列表", exact=True)).to_be_visible()
+            expect(page.locator(".cat-list-search")).to_have_count(0)
+            expect(page.get_by_role("button", name="修改搜索", exact=True)).to_have_count(0)
+            expect(page.get_by_role("heading", level=2)).to_have_count(0)
             expect(page.locator(".cat-hero, .cat-bottom-nav")).to_have_count(0)
             expect(page.get_by_role("heading", name=title, exact=True)).to_be_visible(timeout=30000)
             card = page.locator(".cat-product-card").filter(has=page.get_by_role("heading", name=title, exact=True))
@@ -146,48 +155,58 @@ def main():
             page.reload(wait_until="domcontentloaded")
             expect(page).to_have_url(list_url)
             expect(page.get_by_role("heading", name=title, exact=True)).to_be_visible(timeout=30000)
-            page.get_by_role("button", name="修改搜索", exact=True).click()
+            list_route = urlparse(list_url).fragment
+            criteria = list_route.split("?", 1)[1]
+            page.evaluate("path => { window.location.hash = path; }",
+                          f"/search?{criteria}&returnTo={quote(list_route, safe='')}")
             expect(page).to_have_url(re.compile(r"/#/search(?:\?|$)"))
             search_url = page.url
             page.reload(wait_until="domcontentloaded")
             expect(page).to_have_url(search_url)
-            page.get_by_role("button", name="关闭搜索", exact=True).click()
+            page.get_by_role("button", name="关闭地点选择", exact=True).click()
             expect(page).to_have_url(list_url)
             expect(page.get_by_role("heading", name=title, exact=True)).to_be_visible(timeout=30000)
             page.get_by_role("heading", name=title, exact=True).scroll_into_view_if_needed()
             save(page, "09-catalog")
             page.get_by_role("button", name=f"查看 {title}", exact=True).click()
             expect(page.get_by_role("heading", name=title, exact=True)).to_be_visible(timeout=30000)
-            expect(page.locator(".detail-top-price strong")).to_contain_text("US$", timeout=30000)
+            expect(page.locator(".detail-top-price strong")).to_contain_text("$", timeout=30000)
             expect(page.get_by_role("button", name=re.compile(r"收藏"))).to_have_count(0)
             page.get_by_role("button", name="返回活动列表", exact=True).click()
             expect(page).to_have_url(list_url)
             expect(page.get_by_role("heading", name=title, exact=True)).to_be_visible(timeout=30000)
             page.get_by_role("button", name=f"查看 {title}", exact=True).click()
-            expect(page.locator(".detail-top-price strong")).to_contain_text("US$", timeout=30000)
+            expect(page.locator(".detail-top-price strong")).to_contain_text("$", timeout=30000)
             save(page, "10-product")
             expect(page.locator(".detail-sku-list, .detail-stepper")).to_have_count(0)
             availability_before_sheet = sum(call["path"] == "/api/availability-check" for call in report["api_calls"])
             page.locator(".detail-mobile-booking").get_by_role("button", name="立即预订", exact=True).click()
             sheet = page.get_by_role("dialog", name="预订选项", exact=True)
             expect(sheet).to_be_visible()
-            expect(sheet.locator(".detail-sku-info strong").first).to_contain_text("US$", timeout=30000)
+            expect(sheet.locator(".detail-booking-sheet-footer strong")).to_contain_text("$", timeout=30000)
             assert sum(call["path"] == "/api/availability-check" for call in report["api_calls"]) == availability_before_sheet, "Opening the sheet must not check availability"
-            date_panel = sheet.locator(".detail-sheet-date-panel")
-            date_panel.get_by_role("button", name="所有日期", exact=True).click()
-            available = date_panel.locator(".detail-calendar-day:not([disabled])")
+            sheet.locator(".detail-sheet-selector-date").click()
+            date_picker = page.locator(".detail-picker-sheet.date")
+            expect(date_picker).to_be_visible()
+            available = date_picker.locator(".detail-calendar-day:not([disabled])")
             assert available.count() > 0, "No real bookable date returned for this product"
             available.first.click()
-            expect(sheet.locator(".detail-sku-info strong").first).to_contain_text("US$")
+            date_picker.locator(".detail-picker-confirm").click()
+            expect(sheet).to_be_visible()
             detail = api_data[f"/api/catalog/products/{args.product_code}"]["data"]
             selected = detail["package_list"][0]
             report["product_reference_price"] = detail.get("price")
-            report["sku_titles"] = sheet.locator(".detail-sku-row h4").all_text_contents()
+            sheet.locator(".detail-sheet-selector-quantity").click()
+            quantity_picker = page.locator(".detail-picker-sheet.quantity")
+            expect(quantity_picker.locator(".detail-sku-info strong").first).to_contain_text("$")
+            report["sku_titles"] = quantity_picker.locator(".detail-sku-row h4").all_text_contents()
             required_count = max(1, int(selected.get("package_min_pax") or 0))
-            adult_row = sheet.locator(".detail-sku-row").first
+            adult_row = quantity_picker.locator(".detail-sku-row").first
             count = int(adult_row.locator(".detail-stepper span").inner_text())
             for _ in range(max(0, required_count - count)):
                 adult_row.get_by_role("button", name=re.compile(r"^增加")).click()
+            quantity_picker.locator(".detail-picker-confirm").click()
+            expect(sheet).to_be_visible()
             save(page, "11-calendar")
             sheet.locator(".detail-booking-sheet-footer").get_by_role("button", name="立即预订", exact=True).click()
             expect(page.get_by_role("heading", name="联系人信息", exact=True)).to_be_visible(timeout=30000)

@@ -38,6 +38,7 @@ def main():
     report = {"mode": "live-demo-validation", "synthetic_contact": True, "api_calls": [],
               "api_errors": [], "blocked": [], "page_errors": [], "image_failures": []}
     responses = {}
+    catalog_products = {}
 
     def guard(route):
         request = route.request
@@ -66,6 +67,9 @@ def main():
             try:
                 payload = response.json()
                 responses[parsed.path] = payload
+                if parsed.path == "/api/catalog/products" and payload.get("success"):
+                    catalog_products.update({str(product["product_code"]): product
+                                             for product in payload.get("data", {}).get("products", [])})
                 if not response.ok or payload.get("success") is False:
                     report["api_errors"].append({"path": parsed.path, "status": response.status,
                                                  "code": payload.get("error", {}).get("code"),
@@ -105,15 +109,15 @@ def main():
             report["gateway_mode"] = "validate"
             page.goto(origin, wait_until="domcontentloaded")
             expect(page.locator(".cat-product-card").first).to_be_visible(timeout=30000)
-            products = responses["/api/catalog/products"]["data"]["products"]
-            product = next(item for item in products if str(item["product_code"]) == "105")
+            product = catalog_products.get("105")
+            assert product, "The real homepage catalogue did not include product 105"
             title = product["title"]
             screenshot(page, "01-home")
             page.get_by_role("button", name=f"查看 {title}", exact=True).scroll_into_view_if_needed()
             screenshot(page, "02-catalog")
             page.get_by_role("button", name=f"查看 {title}", exact=True).click()
             expect(page.get_by_role("heading", name=title, exact=True)).to_be_visible(timeout=30000)
-            expect(page.locator(".detail-top-price strong")).to_contain_text("US$", timeout=30000)
+            expect(page.locator(".detail-top-price strong")).to_contain_text("$", timeout=30000)
             screenshot(page, "03-product")
             product_image = page.locator(".detail-hero-image")
             report["product_image_natural_width"] = product_image.evaluate("node => node.naturalWidth") if product_image.count() else 0
@@ -122,13 +126,21 @@ def main():
             page.locator(".detail-mobile-booking").get_by_role("button", name="立即预订", exact=True).click()
             sheet = page.get_by_role("dialog", name="预订选项", exact=True)
             expect(sheet).to_be_visible()
-            expect(sheet.locator(".detail-sku-info strong").first).to_contain_text("US$", timeout=30000)
+            expect(sheet.locator(".detail-booking-sheet-footer strong")).to_contain_text("$", timeout=30000)
             assert sum(call["path"] == "/api/availability-check" for call in report["api_calls"]) == availability_before_sheet, "Opening the sheet must not check availability"
-            date_panel = sheet.locator(".detail-sheet-date-panel")
-            date_panel.get_by_role("button", name="所有日期", exact=True).click()
-            bookable = date_panel.locator(".detail-calendar-day:not([disabled])")
+            sheet.locator(".detail-sheet-selector-date").click()
+            date_picker = page.locator(".detail-picker-sheet.date")
+            expect(date_picker).to_be_visible()
+            bookable = date_picker.locator(".detail-calendar-day:not([disabled])")
             assert bookable.count() > 0, "The real product has no bookable date"
             bookable.first.click()
+            date_picker.locator(".detail-picker-confirm").click()
+            expect(sheet).to_be_visible()
+            sheet.locator(".detail-sheet-selector-quantity").click()
+            quantity_picker = page.locator(".detail-picker-sheet.quantity")
+            expect(quantity_picker.locator(".detail-sku-info strong").first).to_contain_text("$", timeout=30000)
+            quantity_picker.locator(".detail-picker-confirm").click()
+            expect(sheet).to_be_visible()
             screenshot(page, "04-calendar")
             sheet.locator(".detail-booking-sheet-footer").get_by_role("button", name="立即预订", exact=True).click()
             expect(page.get_by_role("heading", name="联系人信息", exact=True)).to_be_visible(timeout=30000)

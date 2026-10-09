@@ -35,6 +35,6 @@ export function formatMoney(value: string | number, currency?: string | null) {
   const amount = Number(value);
   if (!Number.isFinite(amount)) return '价格待确认';
   if (!currency || !/^[A-Z]{3}$/.test(currency)) return amount.toFixed(2);
-  try { return new Intl.NumberFormat('zh-CN', { style: 'currency', currency, maximumFractionDigits: 2 }).format(amount); }
+  try { return new Intl.NumberFormat('zh-CN', { style: 'currency', currency, currencyDisplay: currency === 'USD' ? 'narrowSymbol' : 'symbol', maximumFractionDigits: 2 }).format(amount); }
   catch { return `${currency} ${amount.toFixed(2)}`; }
 }
