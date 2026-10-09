@@ -69,7 +69,7 @@ export default function App() {
   return <div className="site-stage"><div className={`mobile-app${showBottomBar ? ' with-bottom-bar' : ''}`}>
     {searchRoute ? <SearchPage key={path} initialSearch={searchRoute.search} onSearch={submitSearch} onClose={() => go(searchRoute.returnTo)} />
       : productCode ? <ProductDetail productCode={productCode} search={productOrigin.search || search} onBack={() => go(productOrigin.path)} onBook={selection => { setBooking(selection); setOrder(null); go('/booking', productOrigin.path); }} />
-      : path === '/booking' && booking ? <Booking selection={booking} onBack={() => go(`/product/${encodeURIComponent(booking.product.product_code)}`, productOrigin.path)} onComplete={result => { setOrder(result); go('/cashier'); }} />
+      : path === '/booking' && booking ? <Booking selection={booking} onBack={() => go(`/product/${encodeURIComponent(booking.product.product_code)}`, productOrigin.path)} onComplete={(result, finalSelection) => { setBooking(finalSelection); setOrder(result); go('/cashier'); }} />
       : (path === '/cashier' || path === '/confirmation') && order && booking ? <Confirmation booking={booking} order={order} onHome={() => go('/')} />
       : <Catalog key={path} mode={catalogRoute.mode} search={search} activeSearch={activeSearch} onSearchChange={setSearch} onSearch={submitSearch} onOpenSearch={openSearch} onHome={() => go('/')} onOpenProduct={openProduct} />}
     {showBottomBar && <BottomBar />}

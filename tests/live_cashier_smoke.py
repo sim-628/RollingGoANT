@@ -126,7 +126,7 @@ def main():
             page.locator(".detail-mobile-booking").get_by_role("button", name="立即预订", exact=True).click()
             sheet = page.get_by_role("dialog", name="预订选项", exact=True)
             expect(sheet).to_be_visible()
-            expect(sheet.locator(".detail-booking-sheet-footer strong")).to_contain_text("$", timeout=30000)
+            expect(sheet.locator(".detail-booking-sheet-footer strong")).to_be_visible()
             assert sum(call["path"] == "/api/availability-check" for call in report["api_calls"]) == availability_before_sheet, "Opening the sheet must not check availability"
             sheet.locator(".detail-sheet-selector-date").click()
             date_picker = page.locator(".detail-picker-sheet.date")
@@ -139,6 +139,11 @@ def main():
             sheet.locator(".detail-sheet-selector-quantity").click()
             quantity_picker = page.locator(".detail-picker-sheet.quantity")
             expect(quantity_picker.locator(".detail-sku-info strong").first).to_contain_text("$", timeout=30000)
+            selected = responses["/api/catalog/products/105"]["data"]["package_list"][0]
+            minimum = max(1, int(selected.get("package_min_pax") or 0))
+            adult_row = quantity_picker.locator(".detail-sku-row").first
+            while int(adult_row.locator(".detail-stepper span").inner_text()) < minimum:
+                adult_row.get_by_role("button", name=re.compile(r"^增加")).click()
             quantity_picker.locator(".detail-picker-confirm").click()
             expect(sheet).to_be_visible()
             screenshot(page, "04-calendar")

@@ -203,6 +203,10 @@
 .detail-heading{padding:20px 16px 16px}
 .detail-heading h1{font-size:20px;line-height:28px;font-weight:600;letter-spacing:0}
 .detail-eyebrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px;color:var(--detail-muted);line-height:20px}
+.detail-eyebrow .detail-city-label{color:#454545;font-weight:600}
+.detail-eyebrow .detail-country-label{color:#949094;font-weight:400}
+.detail-eyebrow .detail-category-label{padding:2px 7px;border-radius:4px;background:#f5f3f5;color:#817a81;font-size:11px;font-weight:400;line-height:18px}
+.detail-package-price-from,.detail-reference-from{margin-left:4px;font-size:12px;font-weight:400}
 .detail-location,.detail-subtitle{font-size:12px;line-height:20px;color:var(--detail-muted)}
 .detail-top-price strong,.detail-desktop-summary strong,.detail-mobile-booking strong{color:#e90245;font-size:22px;font-weight:600}
 .detail-section-nav button{font-size:14px;font-weight:600}
@@ -285,6 +289,11 @@
 
 /* A modal sheet keeps the chosen package, date and quantity together. */
 .detail-booking-overlay{display:none;position:fixed;inset:0;width:100%;height:100dvh;max-width:none;max-height:none;margin:0;padding:0;border:0;background:transparent;color:#252426;overflow:hidden}
+.detail-booking-overlay{--detail-accent:#000947;--detail-muted:rgba(0,0,0,.6);--detail-rose:#e6063c;--detail-soft:#fff7fa;font-family:inherit}
+.detail-booking-overlay button{font-family:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.detail-booking-overlay button:focus:not(:focus-visible),.detail-page button:focus:not(:focus-visible){outline:none}
+.detail-booking-overlay button:focus-visible{outline:3px solid #818abc;outline-offset:3px}
+.detail-booking-sheet-header h2:focus{outline:none}
 .detail-booking-overlay[open]{display:flex;align-items:flex-end;justify-content:center}
 .detail-booking-overlay::backdrop{background:rgba(20,22,35,.48)}
 .detail-booking-sheet{display:flex;flex-direction:column;width:min(100%,480px);height:min(90dvh,860px);max-height:90dvh;min-height:0;background:#fff;border-radius:20px 20px 0 0;overflow:hidden;box-shadow:0 -12px 48px #00000018}

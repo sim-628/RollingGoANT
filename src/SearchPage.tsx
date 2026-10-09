@@ -165,7 +165,7 @@ export default function SearchPage({ initialSearch, onSearch, onClose }: Props) 
         {suggestionLoading && <p className="ant-search-status" role="status"><Sparkles size={15}/>正在查找当地体验…</p>}
         {(suggestions.some(group => group.failed) || categoryFailed && matches.length > 0) && <p className="ant-search-status">活动分类暂时无法加载。<button onClick={() => setRetry(value => value + 1)}>重试</button></p>}
       </div>}
-      {loading && <p className="ant-search-status ant-search-page-status" role="status">正在加载目的地…</p>}
+      {loading && <div className="ant-search-loading" role="status" aria-label="正在加载目的地"><div className="ant-search-loading-cards" aria-hidden="true">{Array.from({ length: 4 }, (_, index) => <span key={index} />)}</div><div className="ant-search-loading-chips" aria-hidden="true">{Array.from({ length: 8 }, (_, index) => <span key={index} />)}</div></div>}
       {failed && <div className="ant-search-error ant-search-page-status" role="alert"><p>目的地暂时无法加载，请稍后重试。</p><button onClick={() => setRetry(value => value + 1)}>重新加载</button></div>}
     </main>
   </div>;

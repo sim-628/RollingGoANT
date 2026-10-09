@@ -39,7 +39,7 @@
 .ant-search-city-cards img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .ant-search-city-cards span { position: absolute; z-index: 1; left: 8px; right: 8px; bottom: 7px; font-size: 14px; font-weight: 600; line-height: 20px; }
 .ant-search-city-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; }
-.ant-search-city-grid > button { min-width: 0; padding: 6px 3px; overflow-wrap: anywhere; }
+.ant-search-city-grid > button { min-width: 0; padding: 6px 3px; overflow-wrap: anywhere; font-size: 13px; line-height: 20px; }
 .ant-search-results { padding: 8px 12px 24px; }
 .ant-search-city-group { margin: 0; }
 .ant-search-suggestion { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 72px; padding: 12px 0; border: 0; background: #fff; color: #262626; text-align: left; }
@@ -58,4 +58,12 @@
 .ant-search-status button,.ant-search-error button { padding: 7px 12px; border: 0; border-radius: 6px; background: #f2f3f9; color: var(--search-navy); font-size: 12px; }
 .ant-search-error { margin-top: 20px; color: #858585; font-size: 13px; line-height: 22px; }
 .ant-search-page-status { margin-left: 12px; margin-right: 12px; }
-@media(max-width: 360px) { .ant-search-city-grid > button { font-size: 14px; } }
+.ant-search-loading { padding: 0 12px 24px; }
+.ant-search-loading-cards { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; margin-bottom: 8px; }
+.ant-search-loading-cards > span { aspect-ratio: 171.5 / 80; }
+.ant-search-loading-chips { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; }
+.ant-search-loading-chips > span { height: 34px; }
+.ant-search-loading :is(.ant-search-loading-cards,.ant-search-loading-chips) > span { position: relative; overflow: hidden; border-radius: 4px; background: #f0edf0; }
+.ant-search-loading :is(.ant-search-loading-cards,.ant-search-loading-chips) > span::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg,transparent,#ffffffb3,transparent); animation: ant-search-shimmer 1.4s ease-in-out infinite; }
+@keyframes ant-search-shimmer { to { transform: translateX(100%); } }
+@media(prefers-reduced-motion:reduce) { .ant-search-loading :is(.ant-search-loading-cards,.ant-search-loading-chips) > span::after { animation: none; transform: none; } }

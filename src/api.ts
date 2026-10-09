@@ -27,8 +27,8 @@ export function apiGet<T>(path: string, params: Record<string, string | number |
   for (const [key, value] of Object.entries(params)) if (value !== undefined && value !== '') query.set(key, String(value));
   return request<T>(`${path}${query.size ? `?${query.toString()}` : ''}`, init);
 }
-export function apiPost<T>(path: string, body: unknown): Promise<T> {
-  return request<T>(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+export function apiPost<T>(path: string, body: unknown, init: RequestInit = {}): Promise<T> {
+  return request<T>(path, { ...init, method: 'POST', headers: { ...init.headers, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 }
 
 export function formatMoney(value: string | number, currency?: string | null) {

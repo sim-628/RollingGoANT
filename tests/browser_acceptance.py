@@ -115,7 +115,7 @@ def open_booking_options(page):
     page.locator(".detail-mobile-booking").get_by_role("button", name="立即预订", exact=True).click()
     sheet = page.get_by_role("dialog", name="预订选项", exact=True)
     expect(sheet).to_be_visible()
-    expect(sheet.locator(".detail-booking-sheet-footer strong")).to_contain_text("$")
+    expect(sheet.locator(".detail-booking-sheet-footer strong")).to_be_visible()
     return sheet
 
 
@@ -143,7 +143,9 @@ def choose_fixture_date(page, router):
     bookable.click()
     picker.locator(".detail-picker-confirm").click()
     sheet = page.get_by_role("dialog", name="预订选项", exact=True)
-    expect(sheet.locator(".detail-booking-sheet-footer strong")).to_contain_text("85")
+    expect(sheet.locator(".detail-sheet-selector-date strong")).to_contain_text(
+        f'{int(router.calendar_days[2][5:7])}月{int(router.calendar_days[2][8:])}日'
+    )
     return sheet
 
 
@@ -222,7 +224,10 @@ def test_chinese_labels_and_committed_destination(browser, origin):
         expect(page.get_by_role("heading", name="京都活动", exact=True)).to_have_count(0)
         expect(page.get_by_label("正在加载活动", exact=True)).to_have_count(0)
         assert result_params(router)["city_codes"] == ["216"]
-        page.get_by_role("button", name="主题乐园", exact=True).click()
+        with page.expect_response(lambda response: urlparse(response.url).path == "/api/catalog/products"
+                                  and parse_qs(urlparse(response.url).query).get("limit") == ["12"]
+                                  and parse_qs(urlparse(response.url).query).get("category_codes") == ["20101"]):
+            page.get_by_role("button", name="主题乐园", exact=True).click()
         expect(page).to_have_url(re.compile(r"/#/activities\?.*&category=20101(?:&|$)"))
         expect_results_layout(page)
         expect(page.get_by_role("heading", name="京都 · 主题乐园", exact=True)).to_have_count(0)
@@ -378,7 +383,7 @@ def test_direct_product_link_returns_home(browser, origin):
 
 
 def test_catalog_starting_price_and_detail_without_favorites(browser, origin):
-    with mobile_page(browser, origin) as (page, router):
+    with mobile_page(browser, origin, lowest_price_child=True) as (page, router):
         expect(page.locator(".cat-product-price, .cat-see-price, .cat-price-retry")).to_have_count(0)
         assert not router.calls("/api/catalog/prices"), "Homepage recommendations must not request prices"
         pending_prices = []
@@ -396,7 +401,7 @@ def test_catalog_starting_price_and_detail_without_favorites(browser, origin):
         page.context.unroute("**/api/catalog/prices?**", hold_price_response)
         for route in pending_prices:
             router.handle(route)
-        expect(page.locator(".cat-product-card .cat-product-price")).to_have_text(re.compile(r".*79\.00\s*起$"))
+        expect(page.locator(".cat-product-card .cat-product-price")).to_have_text(re.compile(r".*50\.00\s*起$"))
         expect(price_placeholder).to_have_count(0)
         expect(page.get_by_text("选择套餐查看价格", exact=True)).to_have_count(0)
         assert router.calls("/api/catalog/prices")[-1]["params"]["product_codes"] == ["10549"]
@@ -421,6 +426,9 @@ def test_catalog_starting_price_and_detail_without_favorites(browser, origin):
         expect(page.locator(".detail-top-price .price-skeleton")).to_have_count(0)
         expect(page.locator(".detail-top-price strong")).to_have_text(re.compile(r"^\$"))
         expect(page.locator(".detail-top-price strong")).not_to_contain_text("US")
+        expect(page.locator(".detail-top-price strong")).to_contain_text("50.00")
+        expect(page.locator(".detail-package-price")).to_contain_text("50.00")
+        expect(page.get_by_role("button", name=re.compile("今天"))).to_be_visible()
         assert router.calendar_days, "The detail screen did not request an API calendar"
         expect(page.get_by_role("button", name=re.compile(r"收藏"))).to_have_count(0)
         expect(page.get_by_role("button", name="所有日期", exact=True)).to_be_visible()
@@ -430,6 +438,9 @@ def test_catalog_starting_price_and_detail_without_favorites(browser, origin):
         picker = open_quantity_picker(page)
         expect(page.get_by_role("dialog", name="选择人数", exact=True)).to_be_visible()
         expect(picker.locator(".detail-sku-list")).to_be_visible()
+        expect(picker.locator(".detail-stepper span")).to_have_text(["0", "0", "0"])
+        expect(picker.locator(".detail-picker-confirm")).to_be_disabled()
+        expect(picker.locator(".detail-sku-info strong")).to_have_text(["$79.00", "$50.00", "$0.00"])
         picker.get_by_role("button", name="关闭人数选择", exact=True).click()
         date_picker = open_date_picker(page)
         pending_calendar.clear()
@@ -448,7 +459,7 @@ def test_catalog_starting_price_and_detail_without_favorites(browser, origin):
         expect(date_picker.locator(".detail-date-loading")).to_have_count(0)
         expect(date_picker.locator(".detail-calendar-day:not([disabled])").first).to_be_enabled()
         date_picker.get_by_role("button", name="关闭日期选择", exact=True).click()
-        expect(sheet.locator(".detail-booking-sheet-footer strong")).to_contain_text("$")
+        expect(sheet.locator(".detail-booking-sheet-footer strong")).to_have_text("选择日期与人数")
 
 
 def test_booking_sheet_preserves_selection_and_defers_availability(browser, origin):
@@ -468,6 +479,11 @@ def test_booking_sheet_preserves_selection_and_defers_availability(browser, orig
         trigger = page.locator(".detail-mobile-booking").get_by_role("button", name="立即预订", exact=True)
         sheet = open_booking_options(page)
         assert not router.calls("/api/availability-check"), "Opening booking options must not check availability"
+        expect(sheet.locator(".detail-sheet-selector-quantity strong")).to_have_text("请选择")
+        sheet.locator(".detail-booking-sheet-footer").get_by_role("button", name="立即预订", exact=True).click()
+        expect(sheet).to_be_visible()
+        expect(sheet.locator(".detail-sheet-selection-note")).to_contain_text("人数")
+        assert not router.calls("/api/availability-check"), "A required adult specification must still be explicitly selected"
         original_date = sheet.locator(".detail-sheet-selector-date strong").inner_text()
         date_picker = open_date_picker(page)
         expect(date_picker.locator(".detail-calendar-day[data-date]").filter(has=page.locator('span')).first).to_be_visible()
@@ -475,21 +491,29 @@ def test_booking_sheet_preserves_selection_and_defers_availability(browser, orig
         page.keyboard.press("Escape")
         sheet = page.get_by_role("dialog", name="预订选项", exact=True)
         expect(sheet.locator(".detail-sheet-selector-date strong")).to_have_text(original_date)
-        expect(sheet.locator(".detail-booking-sheet-footer strong")).to_contain_text("79")
+        expect(sheet.locator(".detail-booking-sheet-footer strong")).to_have_text("选择日期与人数")
         sheet = choose_fixture_date(page, router)
         quantity_picker = open_quantity_picker(page)
         minus = quantity_picker.get_by_role("button", name="减少Adult数量", exact=True)
         plus = quantity_picker.get_by_role("button", name="增加Adult数量", exact=True)
+        expect(quantity_picker.locator(".detail-stepper span")).to_have_text("0")
         expect(minus).to_be_disabled()
-        plus.click()
-        expect(quantity_picker.locator(".detail-stepper span")).to_have_text("2")
-        quantity_picker.get_by_role("button", name="关闭人数选择", exact=True).click()
-        sheet = page.get_by_role("dialog", name="预订选项", exact=True)
-        expect(sheet.locator(".detail-sheet-selector-quantity strong")).to_have_text("1 人")
-        expect(sheet.locator(".detail-booking-sheet-footer strong")).to_contain_text("85")
-        quantity_picker = open_quantity_picker(page)
+        expect(quantity_picker.locator(".detail-picker-confirm")).to_be_disabled()
+        plus.tap()
         expect(quantity_picker.locator(".detail-stepper span")).to_have_text("1")
+        close = quantity_picker.get_by_role("button", name="关闭人数选择", exact=True)
+        close.evaluate("node => node.addEventListener('click', () => { const s = getComputedStyle(node); window.touchCloseFocus = { visible: node.matches(':focus-visible'), width: s.outlineWidth, style: s.outlineStyle }; })")
+        close.tap()
+        touch_close = page.evaluate("window.touchCloseFocus")
+        assert not touch_close["visible"], "Touch must not leave a keyboard focus ring on the close button"
+        assert touch_close["width"] == "0px" or touch_close["style"] == "none", touch_close
+        sheet = page.get_by_role("dialog", name="预订选项", exact=True)
+        expect(sheet.locator(".detail-sheet-selector-quantity strong")).to_have_text("请选择")
+        expect(sheet.locator(".detail-booking-sheet-footer strong")).to_have_text("选择日期与人数")
+        quantity_picker = open_quantity_picker(page)
+        expect(quantity_picker.locator(".detail-stepper span")).to_have_text("0")
         plus = quantity_picker.get_by_role("button", name="增加Adult数量", exact=True)
+        plus.click()
         plus.click()
         plus.click()
         expect(quantity_picker.locator(".detail-stepper span")).to_have_text("3")
@@ -527,10 +551,31 @@ def test_booking_sheet_preserves_selection_and_defers_availability(browser, orig
         expect(sheet.locator(".detail-sheet-selector-quantity strong")).to_have_text("2 人")
         expect(sheet.locator(".detail-booking-sheet-footer strong")).to_contain_text("170")
         assert not router.calls("/api/availability-check"), "Closing and reopening must not check availability"
+        pending_availability = []
+        def hold_availability(route):
+            pending_availability.append(route)
+        page.context.route("**/api/availability-check", hold_availability)
         sheet.locator(".detail-booking-sheet-footer").get_by_role("button", name="立即预订", exact=True).click()
+        expect(page).to_have_url(re.compile(r"/#/booking$"))
+        expect(page.locator(".booking-loading .booking-skeleton")).to_be_visible()
+        expect(page.locator(".booking-skeleton")).to_have_attribute("role", "status")
+        expect(page.locator(".booking-skeleton")).to_have_attribute("aria-busy", "true")
+        expect(page.locator(".booking-page form, .booking-progress")).to_have_count(0)
+        assert "正在确认" not in page.locator("body").inner_text()
+        assert pending_availability, "The booking page did not start availability preparation"
+        page.context.unroute("**/api/availability-check", hold_availability)
+        for route in pending_availability:
+            if route.request.failure:
+                route.abort()
+            else:
+                router.fulfill(route, {"success": False, "error": {"code": "TEMPORARY_FAILURE", "message": "预订信息暂时无法加载，请重试。"}}, 503)
+        expect(page.get_by_role("alert")).to_contain_text("暂时无法加载")
+        expect(page.get_by_role("button", name="确认预订", exact=True)).to_have_count(0)
+        page.get_by_role("button", name="重新加载预订信息", exact=True).click()
         expect(page.get_by_role("heading", name="联系人信息", exact=True)).to_be_visible()
+        expect(page.locator(".booking-skeleton, .booking-progress")).to_have_count(0)
         calls = router.calls("/api/availability-check")
-        assert len(calls) == 1, "Only the booking sheet confirmation may check availability"
+        assert calls, "Only entering the booking page and explicitly retrying may prepare availability"
         assert calls[0]["body"][0]["sku_list"][0]["count"] == 2
         assert calls[0]["body"][0]["sku_list"][0]["price"] == "85.00"
         assert not router.calls("/api/orders/validate") and not router.calls("/api/orders")
@@ -552,6 +597,8 @@ def go_to_booking(page, router):
     sheet = choose_fixture_date(page, router)
     quantity_picker = open_quantity_picker(page)
     expect(quantity_picker.locator(".detail-sku-info strong")).to_contain_text("85")
+    expect(quantity_picker.locator(".detail-stepper span")).to_have_text("0")
+    quantity_picker.get_by_role("button", name="增加Adult数量", exact=True).click()
     quantity_picker.locator(".detail-picker-confirm").click()
     screenshot(page, "04-product-detail-official-fixture")
     sheet.locator(".detail-booking-sheet-footer").get_by_role("button", name="立即预订", exact=True).click()
@@ -636,15 +683,85 @@ def test_calendar_dynamic_fields_and_order_draft(browser, origin):
         submit.click()
         assert not router.calls("/api/orders/validate"), "Nested traveller requirements must block submission"
         passport.fill("TEST123456")
+        prepared = len(router.calls("/api/availability-check"))
+        product_reads = len(router.calls("/api/catalog/products/10549"))
+        page.get_by_role("button", name="修改出行日期", exact=True).click()
+        editor = page.locator(".detail-picker-sheet.date")
+        expect(editor).to_be_visible()
+        editor.locator(f'.detail-calendar-day[data-date="{router.calendar_days[0]}"]').click()
+        page.keyboard.press("Escape")
+        expect(page.locator(".booking-bottom strong")).to_contain_text("85")
+        assert len(router.calls("/api/availability-check")) == prepared, "Cancelling an edit must not prepare a new quote"
+        expect(page.locator('input[name="first_name"]')).to_have_value("WEI")
+        page.get_by_role("button", name="修改出行日期", exact=True).click()
+        editor = page.locator(".detail-picker-sheet.date")
+        editor.locator(f'.detail-calendar-day[data-date="{router.calendar_days[0]}"]').click()
+        editor.locator(".detail-picker-confirm").click()
+        expect(page.get_by_role("heading", name="联系人信息", exact=True)).to_be_visible()
+        expect(page.locator(".booking-bottom strong")).to_contain_text("79")
+        expect(page.get_by_role("checkbox")).not_to_be_checked()
+        refreshed = router.calls("/api/availability-check")[-1]["body"][0]
+        assert refreshed["start_time"].startswith(router.calendar_days[0])
+        assert refreshed["sku_list"][0]["count"] == 1
+        page.get_by_role("button", name="修改预订人数", exact=True).click()
+        editor = page.locator(".detail-picker-sheet.quantity")
+        expect(editor.locator(".detail-stepper span")).to_have_text("1")
+        editor.get_by_role("button", name="增加Adult数量", exact=True).click()
+        editor.locator(".detail-picker-confirm").click()
+        expect(page.get_by_role("heading", name="联系人信息", exact=True)).to_be_visible()
+        expect(page.locator(".booking-bottom strong")).to_contain_text("158")
+        refreshed = router.calls("/api/availability-check")[-1]["body"][0]
+        assert refreshed["start_time"].startswith(router.calendar_days[0])
+        assert refreshed["sku_list"][0]["count"] == 2 and refreshed["sku_list"][0]["price"] == "79.00"
+        assert len(router.calls("/api/catalog/products/10549")) == product_reads, "Editing reuses the loaded product"
+        for name, value in [("family_name", "ZHANG"), ("first_name", "WEI"), ("mobile", "13800000000")]:
+            expect(page.locator(f'input[name="{name}"]')).to_have_value(value)
+        expect(page.get_by_label(re.compile(r"^Full Name"))).to_have_value("张伟")
+        expect(page.locator("label.field-label").filter(has_text="Phone Number").locator("input")).to_have_value("13800000000")
+        traveller_1 = page.locator("section.form-card").filter(has=page.get_by_role("heading", name=re.compile(r"^旅客 1")))
+        expect(traveller_1.get_by_label(re.compile(r"^Passport Number"))).to_have_value("TEST123456")
+        traveller_2 = page.locator("section.form-card").filter(has=page.get_by_role("heading", name=re.compile(r"^旅客 2")))
+        traveller_2.get_by_label(re.compile(r"^ID Type")).select_option("passport")
+        traveller_2.get_by_label(re.compile(r"^Passport Number")).fill("TEST123456")
+        for width in [320, 393, 744]:
+            page.set_viewport_size({"width": width, "height": 844})
+            page.get_by_role("combobox", name="国际电话区号", exact=True).select_option("852")
+            expect(page.locator('input[name="mobile"]')).to_have_value("13800000000")
+            assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1"), f"Booking overflows at {width}px"
+            for field in page.locator(".phone-field").all():
+                geometry = field.evaluate("node => { const r = node.getBoundingClientRect(); const controls = [...node.querySelectorAll('input, select')].map(c => { const b = c.getBoundingClientRect(); return { left:b.left, right:b.right, width:b.width }; }); return { left:r.left, right:r.right, controls }; }")
+                assert all(c["left"] >= geometry["left"] - 1 and c["right"] <= geometry["right"] + 1 and c["width"] > 0 for c in geometry["controls"]), (width, geometry)
+                assert geometry["controls"][0]["right"] <= geometry["controls"][1]["left"] + 1, (width, geometry)
+            page.get_by_role("combobox", name="国际电话区号", exact=True).select_option("86")
+        page.set_viewport_size({"width": 390, "height": 844})
+        page.get_by_role("checkbox").check()
         screenshot(page, "05-booking-official-fixture")
+        pending_submission = []
+        def hold_submit_availability(route):
+            pending_submission.append(route)
+        page.context.route("**/api/availability-check", hold_submit_availability)
         submit.click()
+        expect(submit.locator(".price-skeleton")).to_be_visible()
+        expect(submit).to_be_disabled()
+        expect(page.locator('input[name="first_name"]')).to_be_disabled()
+        assert "正在确认" not in page.locator("body").inner_text()
+        assert pending_submission, "Confirming must refresh the current availability"
+        page.context.unroute("**/api/availability-check", hold_submit_availability)
+        for route in pending_submission:
+            if route.request.failure:
+                route.abort()
+            else:
+                router.handle(route)
         expect(page.get_by_role("heading", name="预订信息已确认", exact=True)).to_be_visible()
         assert_demo_cashier(page)
         expect(page.locator(".receipt-total strong")).to_have_text(re.compile(r"^\$"))
         expect(page.locator(".receipt-total strong")).not_to_contain_text("US")
         expect(page.get_by_text("ANT-browser-test", exact=True)).to_be_visible()
         assert len(router.calls("/api/orders")) == 1
-        assert_order_payload(router)
+        assert_order_payload(router, expected_price="79.00", expected_count=2)
+        assert router.calls("/api/orders")[-1]["body"]["items"][0]["start_time"].startswith(router.calendar_days[0])
+        expect(page.locator(".receipt-total strong")).to_contain_text("158")
+        expect(page.locator(".receipt-row").filter(has_text="出行日期")).to_contain_text(router.calendar_days[0])
         assert not any("/pay" in entry["path"] for entry in router.requests)
         screenshot(page, "06-confirmation-official-fixture")
 
@@ -687,6 +804,7 @@ def test_empty_unit_rules_still_send_each_traveller(browser, origin):
         sheet = open_booking_options(page)
         sheet = choose_fixture_date(page, router)
         quantity_picker = open_quantity_picker(page)
+        quantity_picker.get_by_role("button", name="增加Adult数量", exact=True).click()
         quantity_picker.get_by_role("button", name="增加Adult数量", exact=True).click()
         quantity_picker.locator(".detail-picker-confirm").click()
         expect(sheet.locator(".detail-booking-sheet-footer strong")).to_contain_text("170")

@@ -183,7 +183,7 @@ def main():
             page.locator(".detail-mobile-booking").get_by_role("button", name="立即预订", exact=True).click()
             sheet = page.get_by_role("dialog", name="预订选项", exact=True)
             expect(sheet).to_be_visible()
-            expect(sheet.locator(".detail-booking-sheet-footer strong")).to_contain_text("$", timeout=30000)
+            expect(sheet.locator(".detail-booking-sheet-footer strong")).to_be_visible()
             assert sum(call["path"] == "/api/availability-check" for call in report["api_calls"]) == availability_before_sheet, "Opening the sheet must not check availability"
             sheet.locator(".detail-sheet-selector-date").click()
             date_picker = page.locator(".detail-picker-sheet.date")

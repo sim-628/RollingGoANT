@@ -27,13 +27,14 @@ TEST_IMAGE = '''<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600"
 class FixtureRouter:
     """Intercept every browser API call, record the request, and forbid surprises."""
 
-    def __init__(self, origin: str, *, fail_products=False, price_change=False, quote_change_only=False, empty_unit_rules=False, category_totals=None):
+    def __init__(self, origin: str, *, fail_products=False, price_change=False, quote_change_only=False, empty_unit_rules=False, category_totals=None, lowest_price_child=False):
         self.origin = origin.rstrip("/")
         self.fail_products = fail_products
         self.price_change = price_change
         self.quote_change_only = quote_change_only
         self.empty_unit_rules = empty_unit_rules
         self.category_totals = dict(category_totals or {})
+        self.lowest_price_child = lowest_price_child
         self.requests = []
         self.unexpected = []
         self.calendar_days = []
@@ -123,6 +124,12 @@ class FixtureRouter:
         }
         if path in mapping:
             response = deepcopy(EXAMPLES[mapping[path]])
+            if self.lowest_price_child and path == "/api/catalog/products/10549":
+                response["data"]["package_list"][0].update(timeslot_type=1, time_zone="Asia/Shanghai")
+                response["data"]["package_list"][0]["sku_list"].extend([
+                    {"sku_code": "200100002", "title": "Child", "sku_type": "child", "required": False},
+                    {"sku_code": "200100003", "title": "Infant", "sku_type": "infant", "required": False},
+                ])
             if self.empty_unit_rules and path == "/api/catalog/packages/extra-info":
                 for package in response["data"]:
                     package["unit_extra_info"] = []
@@ -152,7 +159,7 @@ class FixtureRouter:
             # USD 79.00 adult calendar quote. Backend tests verify aggregation;
             # this fixture verifies how the returned summary is displayed.
             calendar = EXAMPLES["calendar"]["data"][0]
-            example_price = calendar["calendars"][0]["dates"][0]["selling_price"]
+            example_price = "50.00" if self.lowest_price_child else calendar["calendars"][0]["dates"][0]["selling_price"]
             product_code = EXAMPLES["product_detail"]["data"]["product_code"]
             first = date.today()
             summaries = []
@@ -189,7 +196,20 @@ class FixtureRouter:
                 target["dates"].append({"date": f"{day.isoformat()} 00:00:00", "selling_price": price,
                                          "inventory": stock,
                                          "cutoff_time_utc": f"{day.isoformat()} 23:59:59"})
-            self.fulfill(route, {"success": True, "data": [sku]})
+            rows = [sku]
+            if self.lowest_price_child:
+                rows = []
+                for code, title, price in [("200100001", "Adult", None), ("200100002", "Child", "50.00"), ("200100003", "Infant", "0.00")]:
+                    if code not in params.get("sku_codes", [""])[0].split(","):
+                        continue
+                    row = deepcopy(sku)
+                    row.update(sku_code=code, sku_title=title)
+                    if price is not None:
+                        for calendar in row["calendars"]:
+                            for day in calendar["dates"]:
+                                day["selling_price"] = price
+                    rows.append(row)
+            self.fulfill(route, {"success": True, "data": rows})
         elif path == "/api/availability-check" and request.method == "POST":
             response = deepcopy(EXAMPLES["availability"])
             response["data"]["items"] = []

@@ -37,4 +37,7 @@
 .detail-sheet-selector > span { flex: 1; }
 .detail-sheet-selector > strong { font-size: 14px; font-weight: 400; text-decoration: underline; text-underline-offset: 3px; }
 .detail-sheet-count-summary { margin: 12px 0 0; color: #888; font-size: 12px; line-height: 20px; }
+.detail-picker-time-selection { padding: 16px 0 4px; }
+.detail-picker-time-selection h3 { margin: 0 0 10px; color: #333; font-size: 14px; font-weight: 600; }
+.detail-picker-time-selection .detail-unavailable-time { margin: 0; font-size: 12px; line-height: 20px; }
 @media(max-width: 360px) { .detail-picker-sheet .detail-stepper { gap: 12px; } }
